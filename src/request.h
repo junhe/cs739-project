@@ -4,19 +4,19 @@
 
 class ShuffleRequest {
     // process rank_from should send some data
-	// to process rank_to.
-	// Specifically, the data to be sent is 
-	// at from_offset of process rank_from. It
-	// should be sent to process rank_to, and be
-	// saved at to_offset
+    // to process rank_to.
+    // Specifically, the data to be sent is 
+    // at from_offset of process rank_from. It
+    // should be sent to process rank_to, and be
+    // saved at to_offset
     public:
-		int rank_from; 
-		int rank_to;
-		
-		//need 64bits for large file
-		long long from_offset; 		
-		long long to_offset;
-		long long length;
+        int rank_from; 
+        int rank_to;
+        
+        //need 64bits for large file
+        long long from_offset;      
+        long long to_offset;
+        long long length;
 #define PUTREQUEST 0
 #define GETREQUEST 1 
         int flag; // PUTREQUEST or GETREQUEST
