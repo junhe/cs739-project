@@ -18,6 +18,13 @@
 
 using namespace std;
 
+class Pattern {
+    public:
+        off_t start_offset;
+        off_t segment_size;
+};
+
+
 // I need this class to:
 // At rank0: 
 //  fetch workload entries from file
@@ -33,8 +40,8 @@ class WorkloadPool {
         void play_in_the_pool();
         void gather_writes();
         string pool_to_str(vector<HostEntry> pool);
-        vector<off_t> decide_target_pattern();
-        vector<ShuffleRequest> generate_data_flow_graph();
+        Pattern decide_target_pattern();
+        vector<ShuffleRequest> generate_data_flow_graph(Pattern pat);
 
         WorkloadPool(int rank, int np, string wl_path, int bufsz=4096);
         ~WorkloadPool();
@@ -200,7 +207,7 @@ WorkloadPool::gather_writes()
     }
 }
 // The return of this is a pair (start offset, segment size)
-vector<off_t>
+Pattern
 WorkloadPool::decide_target_pattern()
 {
     assert( _rank == 0 ); // only rank 0 can do this
@@ -231,9 +238,9 @@ WorkloadPool::decide_target_pattern()
     if ( mod != 0 ) {
         cout << "WARNING: mod is not zero! :" << mod << endl;
     }
-    vector<off_t> ret;
-    ret.push_back(off_min);
-    ret.push_back(segment_size);
+    Pattern ret;
+    ret.start_offset = off_min;
+    ret.segment_size = segment_size;
 
     return ret;
 }
@@ -247,14 +254,22 @@ WorkloadPool::decide_target_pattern()
 // The steps are:
 //   1. look at each entry in the pool, split it if it 
 //      crosses boundaries
-//   2. decide the destination of each piece. 
+//   2. decide the destination of each piece. We only
+//      describe each edge once.
 //
 // The input is (starting offset, segment size)
 vector<ShuffleRequest>
-WorkloadPool::generate_data_flow_graph(vector<off_t> pattern)
+WorkloadPool::generate_data_flow_graph(Pattern pat)
 {
     assert(_rank == 0);
-
+    
+    vector<HostEntry>::iterator it;
+    for ( it = _pool_reunion.begin();
+          it != _pool_reunion.end();
+          it++ )
+    {
+        
+    }
 }
 
 // This might be the function to be timed.
