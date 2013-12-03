@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.6)
 
 
-project (cs739-project)
+project (cs739project)
 
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall") 
