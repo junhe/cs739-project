@@ -31,6 +31,9 @@ class WorkloadPool {
         void fill();
         WorkloadPool(int rank, int np, string wl_path, int bufsz=4096);
         ~WorkloadPool();
+
+        vector<HostEntry> _pool;
+
     private:
         int _rank;
         int _np;
@@ -38,6 +41,9 @@ class WorkloadPool {
         
         // this is only for rank0
         MapFetcher *_fetcher; 
+
+        void fill_rank0();
+        void fill_rankother();
 };
 
 WorkloadPool::WorkloadPool(int rank, int np, string wl_path, int bufsz)
@@ -56,19 +62,77 @@ WorkloadPool::~WorkloadPool()
         delete _fetcher;
 }
 
-
 void
-WorkloadPool::fill()
+WorkloadPool::fill_rank0()
 {
+    assert( _rank == 0 );
     HostEntry hentry; // a temp entry holder
     if ( _rank == 0 ) {
         _fetcher->fillBuffer(); // fill it first, since sometimes I want all entries
                                // are in memory before timing.
       
         while ( _fetcher->fetchEntry(hentry) != EOF ) {
-            cout << hentry.show() << endl;
+            //cout << hentry.show() << endl;
+            if ( hentry.id == 0 ) {
+                _pool.push_back(hentry);
+            } else {
+                // send to others
+
+                int endflag = 0; // if it is 1, it is the end
+                                 // if it is 0, new entry coming
+                // tell receiver a job is coming
+                MPI_Send(&endflag, 1, MPI_INT, 
+                        hentry.id, 1, MPI_COMM_WORLD);
+                // Send it out
+                MPI_Send(&hentry, sizeof(hentry), MPI_CHAR, 
+                        hentry.id, 1, MPI_COMM_WORLD);
+            }
+        }
+        cout << "number of entries:" << _pool.size() << endl;
+
+        //cout << "fetched all entries from workload file" << endl;
+        int dest_rank;
+        int endflag = 1;
+        for ( dest_rank = 1 ; dest_rank < _np ; dest_rank++ ) {
+            MPI_Send(&endflag, 1, MPI_INT, dest_rank, 1, MPI_COMM_WORLD);
         }
     }
+}
+
+void
+WorkloadPool::fill_rankother()
+{
+    assert( _rank != 0 );
+
+    int endflag;
+    MPI_Status stat;
+    HostEntry hentry;
+    
+    while (true) {
+        // get the flag and decide what to do
+        MPI_Recv( &endflag, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &stat );
+        if ( endflag == 0 ) {
+            // have a workload entry to play
+            MPI_Recv( &hentry, sizeof(hentry), MPI_CHAR,
+                    0, 1, MPI_COMM_WORLD, &stat );
+            cout << "Other: " << hentry.show() << endl;
+            _pool.push_back( hentry );
+        } else {
+            // nothing to do, the end
+            break; // don't do return, comm_buf needs to be freed
+        }
+    }
+}
+
+void
+WorkloadPool::fill()
+{
+    if ( _rank == 0 ) {
+        fill_rank0();
+    } else {
+        fill_rankother();
+    }
+    cout << "I am rank " << _rank << " My pool size is " << _pool.size() << endl;
 }
 
 
