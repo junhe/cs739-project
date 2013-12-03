@@ -32,6 +32,7 @@ class WorkloadPool {
         void play_in_the_pool();
         void gather_writes();
         string pool_to_str(vector<HostEntry> pool);
+        off_t decide_target_segment_size();
 
         WorkloadPool(int rank, int np, string wl_path, int bufsz=4096);
         ~WorkloadPool();
@@ -197,6 +198,41 @@ WorkloadPool::gather_writes()
     }
 }
 
+off_t
+WorkloadPool::decide_target_segment_size()
+{
+    assert( _rank == 0 ); // only rank 0 can do this
+    assert( _pool_reunion.size() > 0 );
+    // Find the logical offset min, max
+    // (max-min)/np is the segment size for each rank
+    off_t off_min = 1 << (sizeof(off_t)-1); // a little conservative here..
+    off_t off_max = -1; // off_t should be signed! right?
+    vector<HostEntry>::iterator it;
+    for ( it = _pool_reunion.begin();
+          it != _pool_reunion.end();
+          it++ )
+    {
+        if ( it->logical_offset < off_min ) {
+            off_min = it->logical_offset;
+        }
+
+        off_t logical_end = it->logical_offset + it->length;
+        if ( logical_end > off_max ) {
+            off_max = logical_end;
+        }
+    }
+
+    off_t segment_size = (off_max - off_min) / _np;
+    off_t mod = (off_max - off_min) % _np;
+    cout << "segment_size:" << segment_size << endl;
+    if ( mod != 0 ) {
+        cout << "WARNING: mod is not zero! :" << mod << endl;
+    }
+
+    return segment_size;
+}
+
+
 // This might be the function to be timed.
 // The start of this function marks the end of our preparation phase.
 // When this function is started, each rank has the workload
@@ -208,6 +244,10 @@ WorkloadPool::play_in_the_pool()
     MPI_Barrier(MPI_COMM_WORLD); // This mimics the start of an application.
 
     gather_writes();
+
+    if (_rank == 0) {
+        decide_target_segment_size();
+    }
 
     int rc, ret;
     MPI_Status stat;
