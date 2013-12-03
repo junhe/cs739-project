@@ -80,6 +80,7 @@ WorkloadPool::fill_rank0()
 
                 int endflag = 0; // if it is 1, it is the end
                                  // if it is 0, new entry coming
+                assert( hentry.id < _np );
                 // tell receiver a job is coming
                 MPI_Send(&endflag, 1, MPI_INT, 
                         hentry.id, 1, MPI_COMM_WORLD);
@@ -94,6 +95,7 @@ WorkloadPool::fill_rank0()
         int dest_rank;
         int endflag = 1;
         for ( dest_rank = 1 ; dest_rank < _np ; dest_rank++ ) {
+            assert( dest_rank < _np );
             MPI_Send(&endflag, 1, MPI_INT, dest_rank, 1, MPI_COMM_WORLD);
         }
     }
@@ -135,9 +137,6 @@ WorkloadPool::fill()
     cout << "I am rank " << _rank << " My pool size is " << _pool.size() << endl;
 }
 
-
-
-
 int main(int argc, char **argv)
 {
     int rank, size;
@@ -156,6 +155,8 @@ int main(int argc, char **argv)
 
     WorkloadPool wlpool (rank, size, argv[1]); 
     wlpool.fill();
+    // now, in each rank's wlpool._pool, we have the workload
+    // for this rank
 
     MPI_Finalize();
     return 0;
