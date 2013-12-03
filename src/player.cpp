@@ -245,6 +245,32 @@ WorkloadPool::decide_target_pattern()
     return ret;
 }
 
+// a helper class
+class SegmentContext {
+    public:
+        off_t index; // which segment it is, 0,1,2,..
+        off_t start_offset;
+        off_t end_offset;
+        off_t in_segment_offset;
+        off_t original_offset;
+};
+
+// given a offset, return the context it falls in
+SegmentContext
+get_segment_context(off_t offset, Pattern pat)
+{
+    SegmentContext context;
+    context.index = offset / pat.segment_size;
+    context.in_segment_offset = offset % pat.segment_size;
+    context.start_offset = pat.segment_size * context.index;
+    // end_offset is the smallest offset that is outside of
+    // the segment
+    context.end_offset = pat.segment_size * (context.index + 1); 
+    context.original_offset = offset;
+
+    return context;
+}
+
 // This function compares the worklaod in the pool with
 // the target pattern, and then figure how we should move
 // the data from one rank to another.
@@ -262,13 +288,37 @@ vector<ShuffleRequest>
 WorkloadPool::generate_data_flow_graph(Pattern pat)
 {
     assert(_rank == 0);
-    
+    vector<ShuffleRequest> ret;
+
     vector<HostEntry>::iterator it;
     for ( it = _pool_reunion.begin();
           it != _pool_reunion.end();
           it++ )
     {
-        
+        HostEntry hentry = *it;  
+        SegmentContext end_context, cur_context;
+        ShuffleRequest request;
+
+        off_t cur_off = hentry.logical_offset;
+        off_t end_off = hentry.logical_offset + hentry.length;
+        end_context = get_segment_context(end_off, pat);
+
+        while ( cur_off < end_off ) {
+            cur_context = get_segment_context(cur_off, pat);
+            if ( cur_context.index != hentry.id ) {
+                // we need shuffle
+                request.rank_from = hentry.id;
+                request.rank_to = cur_context.index;
+
+                request.from_offset = cur_off;
+                request.to_offset = cur_off;
+                request.length = min(cur_context.end_offset, end_context.original_offset) 
+                                    - cur_off;
+                request.flag = PUTREQUEST;
+                ret.push_back(request);
+            }
+            cur_off = cur_context.end_offset;
+        }
     }
 }
 

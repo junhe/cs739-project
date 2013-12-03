@@ -1,3 +1,5 @@
+#include <string>
+#include <sstream>
 //
 // This header file defines all data structures used
 // for communicating between processes. 
@@ -31,6 +33,26 @@ class ShuffleRequest {
                    // this request will be the
                    // third request being handled
                    // by a process.
+
+        std::string to_str() {
+            std::ostringstream oss;
+            oss 
+                << "rank_from:"
+                << rank_from << ","
+                << "rank_to:"
+                << rank_to << ","
+                << "from_offset:"
+                << from_offset << ","
+                << "to_offset:"
+                << to_offset << ","
+                << "length:"
+                << length << ","
+                << "flag:"
+                << flag << ","
+                << "order:"
+                << order << std::endl;
+            return oss.str();
+        }
 };
 
 
