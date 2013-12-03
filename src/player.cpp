@@ -32,7 +32,7 @@ class WorkloadPool {
         void play_in_the_pool();
         void gather_writes();
         string pool_to_str(vector<HostEntry> pool);
-        off_t decide_target_segment_size();
+        vector<off_t> decide_target_pattern();
 
         WorkloadPool(int rank, int np, string wl_path, int bufsz=4096);
         ~WorkloadPool();
@@ -198,8 +198,8 @@ WorkloadPool::gather_writes()
     }
 }
 
-off_t
-WorkloadPool::decide_target_segment_size()
+vector<off_t>
+WorkloadPool::decide_target_pattern()
 {
     assert( _rank == 0 ); // only rank 0 can do this
     assert( _pool_reunion.size() > 0 );
@@ -224,12 +224,16 @@ WorkloadPool::decide_target_segment_size()
 
     off_t segment_size = (off_max - off_min) / _np;
     off_t mod = (off_max - off_min) % _np;
+    cout << "starting off:" << off_min << endl;
     cout << "segment_size:" << segment_size << endl;
     if ( mod != 0 ) {
         cout << "WARNING: mod is not zero! :" << mod << endl;
     }
+    vector<off_t> ret;
+    ret.push_back(off_min);
+    ret.push_back(segment_size);
 
-    return segment_size;
+    return ret;
 }
 
 
@@ -246,7 +250,7 @@ WorkloadPool::play_in_the_pool()
     gather_writes();
 
     if (_rank == 0) {
-        decide_target_segment_size();
+        decide_target_pattern();
     }
 
     int rc, ret;
