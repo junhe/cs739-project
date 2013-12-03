@@ -50,7 +50,7 @@ class ShuffleRequest {
                 << "flag:"
                 << flag << ","
                 << "order:"
-                << order << std::endl;
+                << order ;
             return oss.str();
         }
 };

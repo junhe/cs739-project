@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <map>
 #include <iomanip>
+#include <climits>
 
 #include <mpi.h>
 
@@ -214,13 +215,15 @@ WorkloadPool::decide_target_pattern()
     assert( _pool_reunion.size() > 0 );
     // Find the logical offset min, max
     // (max-min)/np is the segment size for each rank
-    off_t off_min = 1 << (sizeof(off_t)-1); // a little conservative here..
+    off_t off_min = LLONG_MAX; // a little conservative here..
     off_t off_max = -1; // off_t should be signed! right?
+    cout << "off_min:" << off_min << ", " << LLONG_MAX << endl;
     vector<HostEntry>::iterator it;
     for ( it = _pool_reunion.begin();
           it != _pool_reunion.end();
           it++ )
     {
+        cout << "logical offset: " << it->logical_offset << endl;
         if ( it->logical_offset < off_min ) {
             off_min = it->logical_offset;
         }
@@ -260,13 +263,15 @@ SegmentContext
 get_segment_context(off_t offset, Pattern pat)
 {
     SegmentContext context;
-    context.index = offset / pat.segment_size;
+    
+    context.original_offset = offset;
+    int global_index = offset / pat.segment_size;
+    context.index = (offset - pat.start_offset) / pat.segment_size;
     context.in_segment_offset = offset % pat.segment_size;
-    context.start_offset = pat.segment_size * context.index;
+    context.start_offset = pat.segment_size * global_index;
     // end_offset is the smallest offset that is outside of
     // the segment
-    context.end_offset = pat.segment_size * (context.index + 1); 
-    context.original_offset = offset;
+    context.end_offset = pat.segment_size * (global_index + 1); 
 
     return context;
 }
@@ -315,11 +320,14 @@ WorkloadPool::generate_data_flow_graph(Pattern pat)
                 request.length = min(cur_context.end_offset, end_context.original_offset) 
                                     - cur_off;
                 request.flag = PUTREQUEST;
+                cout << request.to_str() << endl;
                 ret.push_back(request);
             }
             cur_off = cur_context.end_offset;
+            cout << cur_off << "| " << end_off << endl;
         }
     }
+    return ret;
 }
 
 // This might be the function to be timed.
@@ -335,7 +343,11 @@ WorkloadPool::play_in_the_pool()
     gather_writes();
 
     if (_rank == 0) {
-        decide_target_pattern();
+        Pattern pat;
+        vector<ShuffleRequest> requests;
+
+        pat = decide_target_pattern();
+        requests = generate_data_flow_graph(pat);
     }
 
     int rc, ret;
