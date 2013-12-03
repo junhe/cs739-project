@@ -14,6 +14,7 @@
 #include "Index.h"
 #include "Util.h"
 #include "MapFetcher.h"
+#include "request.h"
 
 using namespace std;
 
@@ -33,6 +34,7 @@ class WorkloadPool {
         void gather_writes();
         string pool_to_str(vector<HostEntry> pool);
         vector<off_t> decide_target_pattern();
+        vector<ShuffleRequest> generate_data_flow_graph();
 
         WorkloadPool(int rank, int np, string wl_path, int bufsz=4096);
         ~WorkloadPool();
@@ -197,7 +199,7 @@ WorkloadPool::gather_writes()
         }
     }
 }
-
+// The return of this is a pair (start offset, segment size)
 vector<off_t>
 WorkloadPool::decide_target_pattern()
 {
@@ -236,6 +238,24 @@ WorkloadPool::decide_target_pattern()
     return ret;
 }
 
+// This function compares the worklaod in the pool with
+// the target pattern, and then figure how we should move
+// the data from one rank to another.
+// The output of this function will be the input of the
+// scheduler.
+// 
+// The steps are:
+//   1. look at each entry in the pool, split it if it 
+//      crosses boundaries
+//   2. decide the destination of each piece. 
+//
+// The input is (starting offset, segment size)
+vector<ShuffleRequest>
+WorkloadPool::generate_data_flow_graph(vector<off_t> pattern)
+{
+    assert(_rank == 0);
+
+}
 
 // This might be the function to be timed.
 // The start of this function marks the end of our preparation phase.
