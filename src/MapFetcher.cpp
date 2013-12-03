@@ -41,7 +41,7 @@ MapFetcher::readEntryFromStream(HostEntry &entry)
         istringstream iss(line);
         
         if ( !line2entry( line, entry ) == 0 ) {
-            cerr << "failed to line2entry(), might be a comment" << endl;
+            //cerr << "failed to line2entry(), might be a comment" << endl;
             continue; // skip this, and fetch the next one
         } else {
             return 1;
@@ -60,7 +60,7 @@ MapFetcher::line2entry(string line, HostEntry &hentry)
     if ( line.length() > 0 ) {
         if ( line[0] == '#' ) {
             // it is a comment line
-            cerr << "it is a comment line" << endl;
+            //cerr << "it is a comment line" << endl;
             return -1;
         } else {
             // it is a valid plfs map row
