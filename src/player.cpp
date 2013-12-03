@@ -30,11 +30,14 @@ class WorkloadPool {
     public:
         void fill();
         void play_in_the_pool();
+        void gather_writes();
+        string pool_to_str(vector<HostEntry> pool);
 
         WorkloadPool(int rank, int np, string wl_path, int bufsz=4096);
         ~WorkloadPool();
 
         vector<HostEntry> _pool;
+        vector<HostEntry> _pool_reunion; // reusing _pool would make it messy.
 
     private:
         int _rank;
@@ -62,6 +65,17 @@ WorkloadPool::~WorkloadPool()
 {
     if ( _fetcher != NULL )
         delete _fetcher;
+}
+
+string
+WorkloadPool::pool_to_str(vector<HostEntry> pool)
+{
+    string poolstr;
+    vector<HostEntry>::iterator it;
+    for ( it = pool.begin(); it != pool.end(); it++ ) {
+        poolstr += it->show() + '\n';       
+    }
+    return poolstr;
 }
 
 void
@@ -139,11 +153,62 @@ WorkloadPool::fill()
     //cout << "I am rank " << _rank << " My pool size is " << _pool.size() << endl;
 }
 
+// This function gathers all the writes
+// from all the ranks (including rank0)
+// to rank0, so rank0 can decide what pattern
+// they should make together.
+void
+WorkloadPool::gather_writes()
+{
+    if ( _rank == 0 ) {
+        // First of all, put rank0's own entries to _pool_reunion
+        _pool_reunion.assign(_pool.begin(), _pool.end()); // _pool_reunion = _pool works?
+
+        int src_rank;
+        MPI_Status stat;
+        for ( src_rank = 1 ; src_rank < _np ; src_rank++ ) {
+            int entry_count;
+            // Get the count of entries to expect
+            MPI_Recv( &entry_count, 1, MPI_INT, 
+                      src_rank, 1, MPI_COMM_WORLD, &stat );
+            //cout << "Get count " << entry_count << " from " << src_rank << endl;
+            int i;
+            for ( i = 0; i < entry_count; i++ ) {
+                HostEntry hentry;
+                MPI_Recv( &hentry, sizeof(hentry), MPI_CHAR, 
+                          src_rank, 1, MPI_COMM_WORLD, &stat );
+                //cout << hentry.show() << endl;
+                _pool_reunion.push_back( hentry );
+            }
+        }
+        
+        cout << pool_to_str( _pool_reunion );
+    } else {
+        int count = _pool.size();
+        // The rank 0 how many she will expect.
+        MPI_Send(&count, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
+
+        vector<HostEntry>::iterator it;
+        for ( it = _pool.begin(); it != _pool.end(); it++ ) {
+            // Send it out
+            MPI_Send(&(*it), sizeof(HostEntry), MPI_CHAR, 
+                        0, 1, MPI_COMM_WORLD);           
+        }
+    }
+}
 
 // This might be the function to be timed.
+// The start of this function marks the end of our preparation phase.
+// When this function is started, each rank has the workload
+// it needs to do in the _pool. Now we need to start writing them to
+// a shared file.
 void 
 WorkloadPool::play_in_the_pool()
 {
+    MPI_Barrier(MPI_COMM_WORLD); // This mimics the start of an application.
+
+    gather_writes();
+
     int rc, ret;
     MPI_Status stat;
     MPI_File fh;
@@ -156,7 +221,7 @@ WorkloadPool::play_in_the_pool()
     // iterate all workload entries in the pool
     vector<HostEntry>::iterator it;
     for ( it = _pool.begin(); it != _pool.end(); it++ ) {
-        cout << it->show() << endl;
+        //cout << it->show() << endl;
 
         HostEntry entry = *it;
         char *buf = (char *)malloc(entry.length);
@@ -184,9 +249,14 @@ int main(int argc, char **argv)
         if ( rank == 0 )
             cout << "usage: mpirun -np N " << argv[0] << " workload-file" << endl;
         MPI_Finalize();
-        return 1;
+        exit(1);
     }
 
+    if ( size == 0 ) {
+        cout << "Sorry, we don't want to handle 1 process case." << endl;
+        MPI_Finalize();
+        exit(1);
+    }
 
     WorkloadPool wlpool (rank, size, argv[1]); 
     wlpool.fill();
