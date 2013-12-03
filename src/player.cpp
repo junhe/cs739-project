@@ -29,6 +29,8 @@ using namespace std;
 class WorkloadPool {
     public:
         void fill();
+        void play_in_the_pool();
+
         WorkloadPool(int rank, int np, string wl_path, int bufsz=4096);
         ~WorkloadPool();
 
@@ -89,7 +91,7 @@ WorkloadPool::fill_rank0()
                         hentry.id, 1, MPI_COMM_WORLD);
             }
         }
-        cout << "number of entries:" << _pool.size() << endl;
+        //cout << "number of entries:" << _pool.size() << endl;
 
         //cout << "fetched all entries from workload file" << endl;
         int dest_rank;
@@ -117,7 +119,7 @@ WorkloadPool::fill_rankother()
             // have a workload entry to play
             MPI_Recv( &hentry, sizeof(hentry), MPI_CHAR,
                     0, 1, MPI_COMM_WORLD, &stat );
-            cout << "Other: " << hentry.show() << endl;
+            //cout << "Other: " << hentry.show() << endl;
             _pool.push_back( hentry );
         } else {
             // nothing to do, the end
@@ -134,7 +136,40 @@ WorkloadPool::fill()
     } else {
         fill_rankother();
     }
-    cout << "I am rank " << _rank << " My pool size is " << _pool.size() << endl;
+    //cout << "I am rank " << _rank << " My pool size is " << _pool.size() << endl;
+}
+
+
+// This might be the function to be timed.
+void 
+WorkloadPool::play_in_the_pool()
+{
+    int rc, ret;
+    MPI_Status stat;
+    MPI_File fh;
+    char filename[] = "shared.file";
+
+    rc = MPI_File_open( MPI_COMM_WORLD, filename, 
+            MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh ); 
+    assert(rc == MPI_SUCCESS);
+
+    // iterate all workload entries in the pool
+    vector<HostEntry>::iterator it;
+    for ( it = _pool.begin(); it != _pool.end(); it++ ) {
+        cout << it->show() << endl;
+
+        HostEntry entry = *it;
+        char *buf = (char *)malloc(entry.length);
+        assert(buf != NULL);
+
+        ret = MPI_File_write_at(fh, entry.logical_offset,
+            (void *) buf,  entry.length, MPI_CHAR, &stat);
+        assert(ret == MPI_SUCCESS);
+
+        free(buf);
+    }
+
+    MPI_File_close(&fh);
 }
 
 int main(int argc, char **argv)
@@ -155,6 +190,7 @@ int main(int argc, char **argv)
 
     WorkloadPool wlpool (rank, size, argv[1]); 
     wlpool.fill();
+    wlpool.play_in_the_pool();
     // now, in each rank's wlpool._pool, we have the workload
     // for this rank
 
