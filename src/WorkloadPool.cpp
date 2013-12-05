@@ -10,6 +10,54 @@
 
 using namespace std;
 
+///////////////////////////////
+// First of all, some helper functions for WorkloadPool only
+
+// The return of this is a pair (start offset, segment size)
+Pattern
+decide_target_pattern(vector<HostEntry> pool, int np)
+{
+    //assert( _rank == 0 ); // only rank 0 can do this
+    assert( pool.size() > 0 );
+    // Find the logical offset min, max
+    // (max-min)/np is the segment size for each rank
+    off_t off_min = LLONG_MAX; // a little conservative here..
+    off_t off_max = -1; // off_t should be signed! right?
+    //cout << "off_min:" << off_min << ", " << LLONG_MAX << endl;
+    vector<HostEntry>::iterator it;
+    for ( it = pool.begin();
+          it != pool.end();
+          it++ )
+    {
+        //cout << "logical offset: " << it->logical_offset << endl;
+        if ( it->logical_offset < off_min ) {
+            off_min = it->logical_offset;
+        }
+
+        off_t logical_end = it->logical_offset + it->length;
+        if ( logical_end > off_max ) {
+            off_max = logical_end;
+        }
+    }
+
+    off_t segment_size = (off_max - off_min) / np;
+    off_t mod = (off_max - off_min) % np;
+    //cout << "starting off:" << off_min << endl;
+    //cout << "segment_size:" << segment_size << endl;
+    if ( mod != 0 ) {
+        cout << "WARNING: mod is not zero! :" << mod << endl;
+    }
+    Pattern ret;
+    ret.start_offset = off_min;
+    ret.segment_size = segment_size;
+
+    return ret;
+}
+
+
+////////////////////////////////////////
+// WorkloadPool functions
+
 WorkloadPool::WorkloadPool(int rank, int np, string wl_path, int bufsz)
     : _rank(rank), _np(np), _bufsize(bufsz)
 {
@@ -155,46 +203,7 @@ WorkloadPool::gather_writes()
         }
     }
 }
-// The return of this is a pair (start offset, segment size)
-Pattern
-WorkloadPool::decide_target_pattern()
-{
-    assert( _rank == 0 ); // only rank 0 can do this
-    assert( _pool_reunion.size() > 0 );
-    // Find the logical offset min, max
-    // (max-min)/np is the segment size for each rank
-    off_t off_min = LLONG_MAX; // a little conservative here..
-    off_t off_max = -1; // off_t should be signed! right?
-    //cout << "off_min:" << off_min << ", " << LLONG_MAX << endl;
-    vector<HostEntry>::iterator it;
-    for ( it = _pool_reunion.begin();
-          it != _pool_reunion.end();
-          it++ )
-    {
-        //cout << "logical offset: " << it->logical_offset << endl;
-        if ( it->logical_offset < off_min ) {
-            off_min = it->logical_offset;
-        }
 
-        off_t logical_end = it->logical_offset + it->length;
-        if ( logical_end > off_max ) {
-            off_max = logical_end;
-        }
-    }
-
-    off_t segment_size = (off_max - off_min) / _np;
-    off_t mod = (off_max - off_min) % _np;
-    //cout << "starting off:" << off_min << endl;
-    //cout << "segment_size:" << segment_size << endl;
-    if ( mod != 0 ) {
-        cout << "WARNING: mod is not zero! :" << mod << endl;
-    }
-    Pattern ret;
-    ret.start_offset = off_min;
-    ret.segment_size = segment_size;
-
-    return ret;
-}
 
 // a helper class
 class SegmentContext {
@@ -294,7 +303,7 @@ WorkloadPool::play_in_the_pool()
         Pattern pat;
         vector<ShuffleRequest> requests;
 
-        pat = decide_target_pattern();
+        pat = decide_target_pattern(_pool_reunion, _np);
         requests = generate_data_flow_graph(pat);
     }
 

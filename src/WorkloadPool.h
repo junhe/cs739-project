@@ -30,7 +30,6 @@ class WorkloadPool {
         void play_in_the_pool();
         void gather_writes();
         std::string pool_to_str(std::vector<HostEntry> pool);
-        Pattern decide_target_pattern();
         std::vector<ShuffleRequest> generate_data_flow_graph(Pattern pat);
 
         WorkloadPool(int rank, int np, std::string wl_path, int bufsz=4096);
