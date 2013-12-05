@@ -146,6 +146,20 @@ generate_data_flow_graph(vector<HostEntry> pool, Pattern pat)
     return ret;
 }
 
+string
+requests_to_str(vector<ShuffleRequest> req, int rank)
+{
+    ostringstream oss;
+    vector<ShuffleRequest>::iterator it;
+    for ( it = req.begin();
+          it != req.end();
+          it++ )
+    {
+        oss << "At rank " << rank << " | "<< it->to_str() << endl;
+    }
+
+    return oss.str();
+}
 
 ////////////////////////////////////////
 ////////////////////////////////////////
@@ -350,37 +364,37 @@ WorkloadPool::distribute_requests(vector<ShuffleRequest> requests)
     {
         assert( it->rank_from != it->rank_to );
 
+        // send to the source of the data movement
         if ( it->rank_from == 0 ) {
             _shuffle_plan.push_back(*it);
         } else {
-            // send to the source of the data movement
             MPI_Send(&endflag, 1, MPI_INT, 
                     it->rank_from, 1, MPI_COMM_WORLD);
             MPI_Send(&(*it), sizeof(ShuffleRequest), MPI_CHAR, 
                     it->rank_from, 1, MPI_COMM_WORLD);
         }
 
+        // send to the destination of the data movement
         if ( it->rank_to == 0 ) {
             _shuffle_plan.push_back(*it);
         } else {
-            // send to the destination of the data movement
             MPI_Send(&endflag, 1, MPI_INT, 
                     it->rank_to, 1, MPI_COMM_WORLD);
             MPI_Send(&(*it), sizeof(ShuffleRequest), MPI_CHAR, 
                     it->rank_to, 1, MPI_COMM_WORLD);
         }
 
-        int dest_rank;
-        endflag = 1;
-        for ( dest_rank = 1 ; dest_rank < _np ; dest_rank++ ) {
-            assert( dest_rank < _np );
-            MPI_Send(&endflag, 1, MPI_INT, dest_rank, 1, MPI_COMM_WORLD);
-        }
+
     }
 
+    int dest_rank;
+    endflag = 1;
+    for ( dest_rank = 1 ; dest_rank < _np ; dest_rank++ ) {
+        assert( dest_rank < _np );
+        MPI_Send(&endflag, 1, MPI_INT, dest_rank, 1, MPI_COMM_WORLD);
+    }
 
-
-
+    return ;
 }
 
 void
@@ -425,6 +439,9 @@ WorkloadPool::play_in_the_pool()
 
         pat = decide_target_pattern(_pool_reunion);
         requests = generate_data_flow_graph(_pool_reunion, pat);
+        
+        cout << "REQUESTS IN RANK 0"<< endl;
+        cout << requests_to_str(requests, _rank);
 
         /////////////
         // This is where the scheduler should sit
@@ -434,18 +451,14 @@ WorkloadPool::play_in_the_pool()
         // to all ranks
         vector<ShuffleRequest> requests_ordered = requests; //WARNING:for debug only
 
+
         distribute_requests(requests_ordered);
     } else {
         receive_requests();
     }
-
-    vector<ShuffleRequest>::iterator it;
-    for ( it = _shuffle_plan.begin();
-          it != _shuffle_plan.end();
-          it++ )
-    {
-        cout << "At rank " << _rank << " | "<< it->to_str() << endl;
-    }
+    
+    cout << ">>>>>>>>> Shuffle Plan [" << _rank << "] <<<<<<<<" << endl;
+    cout << requests_to_str(_shuffle_plan, _rank);
 
     // Shuffle data according to the plan 
 

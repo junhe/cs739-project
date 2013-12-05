@@ -43,13 +43,7 @@ int main(int argc, char **argv)
     vector<ShuffleRequest> requests = 
             wlpool.get_shuffle_requests_DEBUG();
     // >>>>>>>> requests is the inputer of scheduler <<<<<<<<<
-    vector<ShuffleRequest>::iterator it;
-    for ( it = requests.begin();
-          it != requests.end();
-          it++ )
-    {
-        cout << it->to_str() << endl;
-    }
+    cout << requests_to_str( requests, rank);
 #else
     wlpool.distributed_fill();
     // now, in each rank's wlpool._pool, we have the workload

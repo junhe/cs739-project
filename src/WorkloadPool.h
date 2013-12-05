@@ -55,5 +55,9 @@ class WorkloadPool {
         void fill_rankother();
 };
 
+
+std::string requests_to_str(std::vector<ShuffleRequest> req, int rank);
+
+
 #endif
 
