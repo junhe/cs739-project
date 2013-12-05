@@ -193,7 +193,7 @@ WorkloadPool::gather_writes()
             }
         }
         
-        cout << pool_to_str( _pool_reunion );
+        //cout << pool_to_str( _pool_reunion );
     } else {
         int count = _pool.size();
         // The rank 0 how many she will expect.
@@ -217,13 +217,13 @@ WorkloadPool::decide_target_pattern()
     // (max-min)/np is the segment size for each rank
     off_t off_min = LLONG_MAX; // a little conservative here..
     off_t off_max = -1; // off_t should be signed! right?
-    cout << "off_min:" << off_min << ", " << LLONG_MAX << endl;
+    //cout << "off_min:" << off_min << ", " << LLONG_MAX << endl;
     vector<HostEntry>::iterator it;
     for ( it = _pool_reunion.begin();
           it != _pool_reunion.end();
           it++ )
     {
-        cout << "logical offset: " << it->logical_offset << endl;
+        //cout << "logical offset: " << it->logical_offset << endl;
         if ( it->logical_offset < off_min ) {
             off_min = it->logical_offset;
         }
@@ -236,8 +236,8 @@ WorkloadPool::decide_target_pattern()
 
     off_t segment_size = (off_max - off_min) / _np;
     off_t mod = (off_max - off_min) % _np;
-    cout << "starting off:" << off_min << endl;
-    cout << "segment_size:" << segment_size << endl;
+    //cout << "starting off:" << off_min << endl;
+    //cout << "segment_size:" << segment_size << endl;
     if ( mod != 0 ) {
         cout << "WARNING: mod is not zero! :" << mod << endl;
     }
@@ -324,7 +324,7 @@ WorkloadPool::generate_data_flow_graph(Pattern pat)
                 ret.push_back(request);
             }
             cur_off = cur_context.end_offset;
-            cout << cur_off << "| " << end_off << endl;
+            //cout << cur_off << "| " << end_off << endl;
         }
     }
     return ret;
