@@ -42,6 +42,7 @@ int main(int argc, char **argv)
     //cout << wlpool._pool.size() << endl;
     vector<ShuffleRequest> requests = 
             wlpool.get_shuffle_requests_DEBUG();
+    // >>>>>>>> requests is the inputer of scheduler <<<<<<<<<
     vector<ShuffleRequest>::iterator it;
     for ( it = requests.begin();
           it != requests.end();

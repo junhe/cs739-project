@@ -110,7 +110,7 @@ vector<ShuffleRequest>
 generate_data_flow_graph(vector<HostEntry> pool, Pattern pat)
 {
     vector<ShuffleRequest> ret;
-
+    //cout << "pool.size in generate_data_flow_graph:" << pool.size() << endl;
     vector<HostEntry>::iterator it;
     for ( it = pool.begin();
           it != pool.end();
@@ -136,7 +136,7 @@ generate_data_flow_graph(vector<HostEntry> pool, Pattern pat)
                 request.length = min(cur_context.end_offset, end_context.original_offset) 
                                     - cur_off;
                 request.flag = PUTREQUEST;
-                cout << request.to_str() << endl;
+                //cout << request.to_str() << endl;
                 ret.push_back(request);
             }
             cur_off = cur_context.end_offset;
