@@ -33,12 +33,15 @@ class WorkloadPool {
         std::string pool_to_str(std::vector<HostEntry> pool);
         std::vector<ShuffleRequest>
             get_shuffle_requests_DEBUG();
+        void distribute_requests(std::vector<ShuffleRequest> requests);
+        void receive_requests();
 
         WorkloadPool(int rank, int np, std::string wl_path, int bufsz=4096);
         ~WorkloadPool();
 
         std::vector<HostEntry> _pool;
         std::vector<HostEntry> _pool_reunion; // reusing _pool would make it messy.
+        std::vector<ShuffleRequest> _shuffle_plan;
 
     private:
         int _rank;

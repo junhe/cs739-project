@@ -335,6 +335,76 @@ WorkloadPool::gather_writes()
     }
 }
 
+// This is what rank 0 does
+void
+WorkloadPool::distribute_requests(vector<ShuffleRequest> requests)
+{
+    assert( _rank == 0 );
+
+    int endflag = 0;
+
+    vector<ShuffleRequest>::iterator it;
+    for ( it = requests.begin();
+          it != requests.end();
+          it++ )
+    {
+        assert( it->rank_from != it->rank_to );
+
+        if ( it->rank_from == 0 ) {
+            _shuffle_plan.push_back(*it);
+        } else {
+            // send to the source of the data movement
+            MPI_Send(&endflag, 1, MPI_INT, 
+                    it->rank_from, 1, MPI_COMM_WORLD);
+            MPI_Send(&(*it), sizeof(ShuffleRequest), MPI_CHAR, 
+                    it->rank_from, 1, MPI_COMM_WORLD);
+        }
+
+        if ( it->rank_to == 0 ) {
+            _shuffle_plan.push_back(*it);
+        } else {
+            // send to the destination of the data movement
+            MPI_Send(&endflag, 1, MPI_INT, 
+                    it->rank_to, 1, MPI_COMM_WORLD);
+            MPI_Send(&(*it), sizeof(ShuffleRequest), MPI_CHAR, 
+                    it->rank_to, 1, MPI_COMM_WORLD);
+        }
+
+        int dest_rank;
+        endflag = 1;
+        for ( dest_rank = 1 ; dest_rank < _np ; dest_rank++ ) {
+            assert( dest_rank < _np );
+            MPI_Send(&endflag, 1, MPI_INT, dest_rank, 1, MPI_COMM_WORLD);
+        }
+    }
+
+
+
+
+}
+
+void
+WorkloadPool::receive_requests()
+{
+    int endflag;
+    MPI_Status stat;
+    ShuffleRequest req; // temp request
+
+    while (true) {
+        // get the flag and decide what to do
+        MPI_Recv( &endflag, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &stat );
+        if ( endflag == 0 ) {
+            MPI_Recv( &req, sizeof(ShuffleRequest), MPI_CHAR,
+                    0, 1, MPI_COMM_WORLD, &stat );
+            //cout << "Other: " << hentry.show() << endl;
+            _shuffle_plan.push_back(req);
+        } else {
+            // nothing to do, the end
+            break; // don't do return, comm_buf needs to be freed
+        }
+    }
+    return;
+}
 
 
 // This might be the function to be timed.
@@ -355,8 +425,34 @@ WorkloadPool::play_in_the_pool()
 
         pat = decide_target_pattern(_pool_reunion);
         requests = generate_data_flow_graph(_pool_reunion, pat);
+
+        /////////////
+        // This is where the scheduler should sit
+        /////////////
+        
+        // Rank 0 distributes all the ordered requests 
+        // to all ranks
+        vector<ShuffleRequest> requests_ordered = requests; //WARNING:for debug only
+
+        distribute_requests(requests_ordered);
+    } else {
+        receive_requests();
     }
 
+    vector<ShuffleRequest>::iterator it;
+    for ( it = _shuffle_plan.begin();
+          it != _shuffle_plan.end();
+          it++ )
+    {
+        cout << "At rank " << _rank << " | "<< it->to_str() << endl;
+    }
+
+    // Shuffle data according to the plan 
+
+    // Actually write the file
+
+
+#if 0
     int rc, ret;
     MPI_Status stat;
     MPI_File fh;
@@ -383,6 +479,7 @@ WorkloadPool::play_in_the_pool()
     }
 
     MPI_File_close(&fh);
+#endif
 }
 
 vector<ShuffleRequest>

@@ -36,7 +36,7 @@ int main(int argc, char **argv)
 
     WorkloadPool wlpool (rank, size, argv[1]); 
 
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
     wlpool.single_fill();
     //cout << wlpool._pool.size() << endl;
