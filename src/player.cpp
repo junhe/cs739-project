@@ -35,10 +35,17 @@ int main(int argc, char **argv)
     }
 
     WorkloadPool wlpool (rank, size, argv[1]); 
+
+#define DEBUG
+#ifdef DEBUG
+    wlpool.single_fill();
+    cout << wlpool._pool.size() << endl;
+#else
     wlpool.distributed_fill();
     // now, in each rank's wlpool._pool, we have the workload
     // for this rank
     wlpool.play_in_the_pool();
+#endif
 
     MPI_Finalize();
     return 0;
