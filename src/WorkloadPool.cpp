@@ -54,6 +54,91 @@ decide_target_pattern(vector<HostEntry> pool, int np)
     return ret;
 }
 
+// a helper class
+class SegmentContext {
+    public:
+        off_t index; // which segment it is, 0,1,2,..
+        off_t start_offset;
+        off_t end_offset;
+        off_t in_segment_offset;
+        off_t original_offset;
+};
+
+// given a offset, return the context it falls in
+SegmentContext
+get_segment_context(off_t offset, Pattern pat)
+{
+    SegmentContext context;
+    
+    context.original_offset = offset;
+    int global_index = offset / pat.segment_size;
+    context.index = (offset - pat.start_offset) / pat.segment_size;
+    context.in_segment_offset = offset % pat.segment_size;
+    context.start_offset = pat.segment_size * global_index;
+    // end_offset is the smallest offset that is outside of
+    // the segment
+    context.end_offset = pat.segment_size * (global_index + 1); 
+
+    return context;
+}
+
+// This function compares the worklaod in the pool with
+// the target pattern, and then figure how we should move
+// the data from one rank to another.
+// The output of this function will be the input of the
+// scheduler.
+// 
+// The steps are:
+//   1. look at each entry in the pool, split it if it 
+//      crosses boundaries
+//   2. decide the destination of each piece. We only
+//      describe each edge once.
+//
+// The input is (starting offset, segment size)
+vector<ShuffleRequest>
+generate_data_flow_graph(vector<HostEntry> pool, Pattern pat)
+{
+    vector<ShuffleRequest> ret;
+
+    vector<HostEntry>::iterator it;
+    for ( it = pool.begin();
+          it != pool.end();
+          it++ )
+    {
+        HostEntry hentry = *it;  
+        SegmentContext end_context, cur_context;
+        ShuffleRequest request;
+
+        off_t cur_off = hentry.logical_offset;
+        off_t end_off = hentry.logical_offset + hentry.length;
+        end_context = get_segment_context(end_off, pat);
+
+        while ( cur_off < end_off ) {
+            cur_context = get_segment_context(cur_off, pat);
+            if ( cur_context.index != hentry.id ) {
+                // we need shuffle
+                request.rank_from = hentry.id;
+                request.rank_to = cur_context.index;
+
+                request.from_offset = cur_off;
+                request.to_offset = cur_off;
+                request.length = min(cur_context.end_offset, end_context.original_offset) 
+                                    - cur_off;
+                request.flag = PUTREQUEST;
+                cout << request.to_str() << endl;
+                ret.push_back(request);
+            }
+            cur_off = cur_context.end_offset;
+            //cout << cur_off << "| " << end_off << endl;
+        }
+    }
+    return ret;
+}
+
+
+
+
+
 
 ////////////////////////////////////////
 // WorkloadPool functions
@@ -205,87 +290,6 @@ WorkloadPool::gather_writes()
 }
 
 
-// a helper class
-class SegmentContext {
-    public:
-        off_t index; // which segment it is, 0,1,2,..
-        off_t start_offset;
-        off_t end_offset;
-        off_t in_segment_offset;
-        off_t original_offset;
-};
-
-// given a offset, return the context it falls in
-SegmentContext
-get_segment_context(off_t offset, Pattern pat)
-{
-    SegmentContext context;
-    
-    context.original_offset = offset;
-    int global_index = offset / pat.segment_size;
-    context.index = (offset - pat.start_offset) / pat.segment_size;
-    context.in_segment_offset = offset % pat.segment_size;
-    context.start_offset = pat.segment_size * global_index;
-    // end_offset is the smallest offset that is outside of
-    // the segment
-    context.end_offset = pat.segment_size * (global_index + 1); 
-
-    return context;
-}
-
-// This function compares the worklaod in the pool with
-// the target pattern, and then figure how we should move
-// the data from one rank to another.
-// The output of this function will be the input of the
-// scheduler.
-// 
-// The steps are:
-//   1. look at each entry in the pool, split it if it 
-//      crosses boundaries
-//   2. decide the destination of each piece. We only
-//      describe each edge once.
-//
-// The input is (starting offset, segment size)
-vector<ShuffleRequest>
-WorkloadPool::generate_data_flow_graph(Pattern pat)
-{
-    assert(_rank == 0);
-    vector<ShuffleRequest> ret;
-
-    vector<HostEntry>::iterator it;
-    for ( it = _pool_reunion.begin();
-          it != _pool_reunion.end();
-          it++ )
-    {
-        HostEntry hentry = *it;  
-        SegmentContext end_context, cur_context;
-        ShuffleRequest request;
-
-        off_t cur_off = hentry.logical_offset;
-        off_t end_off = hentry.logical_offset + hentry.length;
-        end_context = get_segment_context(end_off, pat);
-
-        while ( cur_off < end_off ) {
-            cur_context = get_segment_context(cur_off, pat);
-            if ( cur_context.index != hentry.id ) {
-                // we need shuffle
-                request.rank_from = hentry.id;
-                request.rank_to = cur_context.index;
-
-                request.from_offset = cur_off;
-                request.to_offset = cur_off;
-                request.length = min(cur_context.end_offset, end_context.original_offset) 
-                                    - cur_off;
-                request.flag = PUTREQUEST;
-                cout << request.to_str() << endl;
-                ret.push_back(request);
-            }
-            cur_off = cur_context.end_offset;
-            //cout << cur_off << "| " << end_off << endl;
-        }
-    }
-    return ret;
-}
 
 // This might be the function to be timed.
 // The start of this function marks the end of our preparation phase.
@@ -304,7 +308,7 @@ WorkloadPool::play_in_the_pool()
         vector<ShuffleRequest> requests;
 
         pat = decide_target_pattern(_pool_reunion, _np);
-        requests = generate_data_flow_graph(pat);
+        requests = generate_data_flow_graph(_pool_reunion, pat);
     }
 
     int rc, ret;
