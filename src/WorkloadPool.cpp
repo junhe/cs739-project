@@ -379,3 +379,16 @@ WorkloadPool::play_in_the_pool()
     MPI_File_close(&fh);
 }
 
+vector<ShuffleRequest>
+WorkloadPool::get_shuffle_requests_DEBUG()
+{
+    Pattern pat;
+    vector<ShuffleRequest> requests;
+
+    pat = decide_target_pattern(_pool, _np);
+    requests = generate_data_flow_graph(_pool, pat);
+
+    return requests;
+}
+
+

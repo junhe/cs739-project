@@ -31,6 +31,8 @@ class WorkloadPool {
         void play_in_the_pool();
         void gather_writes();
         std::string pool_to_str(std::vector<HostEntry> pool);
+        std::vector<ShuffleRequest>
+            get_shuffle_requests_DEBUG();
 
         WorkloadPool(int rank, int np, std::string wl_path, int bufsz=4096);
         ~WorkloadPool();

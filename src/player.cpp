@@ -39,7 +39,16 @@ int main(int argc, char **argv)
 #define DEBUG
 #ifdef DEBUG
     wlpool.single_fill();
-    cout << wlpool._pool.size() << endl;
+    //cout << wlpool._pool.size() << endl;
+    vector<ShuffleRequest> requests = 
+            wlpool.get_shuffle_requests_DEBUG();
+    vector<ShuffleRequest>::iterator it;
+    for ( it = requests.begin();
+          it != requests.end();
+          it++ )
+    {
+        cout << it->to_str() << endl;
+    }
 #else
     wlpool.distributed_fill();
     // now, in each rank's wlpool._pool, we have the workload
