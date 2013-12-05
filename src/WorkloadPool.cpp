@@ -20,7 +20,7 @@ using namespace std;
 
 // The return of this is a pair (start offset, segment size)
 Pattern
-decide_target_pattern(vector<HostEntry> pool, int np)
+decide_target_pattern(vector<HostEntry> pool)
 {
     //assert( _rank == 0 ); // only rank 0 can do this
     assert( pool.size() > 0 );
@@ -29,6 +29,7 @@ decide_target_pattern(vector<HostEntry> pool, int np)
     off_t off_min = LLONG_MAX; // a little conservative here..
     off_t off_max = -1; // off_t should be signed! right?
     //cout << "off_min:" << off_min << ", " << LLONG_MAX << endl;
+    int max_rank = 0;
     vector<HostEntry>::iterator it;
     for ( it = pool.begin();
           it != pool.end();
@@ -43,8 +44,13 @@ decide_target_pattern(vector<HostEntry> pool, int np)
         if ( logical_end > off_max ) {
             off_max = logical_end;
         }
+
+        if ( it->id > max_rank ) {
+            max_rank = it->id;
+        }
     }
 
+    int np = max_rank + 1;
     off_t segment_size = (off_max - off_min) / np;
     off_t mod = (off_max - off_min) % np;
     //cout << "starting off:" << off_min << endl;
@@ -347,7 +353,7 @@ WorkloadPool::play_in_the_pool()
         Pattern pat;
         vector<ShuffleRequest> requests;
 
-        pat = decide_target_pattern(_pool_reunion, _np);
+        pat = decide_target_pattern(_pool_reunion);
         requests = generate_data_flow_graph(_pool_reunion, pat);
     }
 
@@ -385,7 +391,7 @@ WorkloadPool::get_shuffle_requests_DEBUG()
     Pattern pat;
     vector<ShuffleRequest> requests;
 
-    pat = decide_target_pattern(_pool, _np);
+    pat = decide_target_pattern(_pool);
     requests = generate_data_flow_graph(_pool, pat);
 
     return requests;
