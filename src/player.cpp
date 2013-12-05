@@ -34,14 +34,8 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    if ( size == 0 ) {
-        cout << "Sorry, we don't want to handle 1 process case." << endl;
-        MPI_Finalize();
-        exit(1);
-    }
-
     WorkloadPool wlpool (rank, size, argv[1]); 
-    wlpool.fill();
+    wlpool.distributed_fill();
     // now, in each rank's wlpool._pool, we have the workload
     // for this rank
     wlpool.play_in_the_pool();

@@ -26,7 +26,8 @@ class Pattern {
 // MPI_finalize(). You need to use this class between them.
 class WorkloadPool {
     public:
-        void fill();
+        void single_fill(); // fill rank 0 with workload for debug
+        void distributed_fill(); //fill many ranks with workload
         void play_in_the_pool();
         void gather_writes();
         std::string pool_to_str(std::vector<HostEntry> pool);
