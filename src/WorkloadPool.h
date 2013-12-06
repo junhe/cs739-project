@@ -35,6 +35,7 @@ class WorkloadPool {
             get_shuffle_requests_DEBUG();
         void distribute_requests(std::vector<ShuffleRequest> requests);
         void receive_requests();
+        void shuffle_data(std::vector<ShuffleRequest> plan);
 
         WorkloadPool(int rank, int np, std::string wl_path, int bufsz=4096);
         ~WorkloadPool();

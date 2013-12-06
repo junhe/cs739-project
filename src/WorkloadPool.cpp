@@ -356,6 +356,7 @@ WorkloadPool::distribute_requests(vector<ShuffleRequest> requests)
     assert( _rank == 0 );
 
     int endflag = 0;
+    int totalorder = 0;
 
     vector<ShuffleRequest>::iterator it;
     for ( it = requests.begin();
@@ -363,6 +364,12 @@ WorkloadPool::distribute_requests(vector<ShuffleRequest> requests)
           it++ )
     {
         assert( it->rank_from != it->rank_to );
+
+        // WARNING
+        // For Debug only
+        // Assign it a total order
+        it->order = totalorder;
+        totalorder++;
 
         // send to the source of the data movement
         if ( it->rank_from == 0 ) {
@@ -383,8 +390,6 @@ WorkloadPool::distribute_requests(vector<ShuffleRequest> requests)
             MPI_Send(&(*it), sizeof(ShuffleRequest), MPI_CHAR, 
                     it->rank_to, 1, MPI_COMM_WORLD);
         }
-
-
     }
 
     int dest_rank;
@@ -420,6 +425,41 @@ WorkloadPool::receive_requests()
     return;
 }
 
+void
+WorkloadPool::shuffle_data(vector<ShuffleRequest> plan)
+{
+    MPI_Status stat;
+    vector<ShuffleRequest>::iterator it;
+    for ( it = plan.begin();
+          it != plan.end();
+          it++ )
+    {
+        if ( it->rank_from == _rank ) {
+            // I am the one who is sending
+            cout << _rank << "| Sending from " 
+                 << _rank << " to " << it->rank_to << endl;
+            char *buf = (char*)malloc( it->length ); 
+            assert(buf != NULL);
+            MPI_Send(buf, it->length, MPI_CHAR, 
+                    it->rank_to, 1, MPI_COMM_WORLD);
+            free(buf);
+        } else if ( it->rank_to == _rank ) {
+            // I am the one who is receiving
+            cout << _rank << "| Receiving from " << it->rank_from 
+                 << " at " << it->rank_to << endl;
+            char *buf = (char*)malloc( it->length );
+            assert(buf != NULL);
+
+            MPI_Recv( buf, it->length, MPI_CHAR, 
+                      it->rank_from, 1, MPI_COMM_WORLD, &stat );
+            free(buf);
+
+        } else {
+            fprintf(stderr, "This shuffle plan does not belong to me!");
+            exit(1);
+        }
+    }
+}
 
 // This might be the function to be timed.
 // The start of this function marks the end of our preparation phase.
@@ -450,8 +490,6 @@ WorkloadPool::play_in_the_pool()
         // Rank 0 distributes all the ordered requests 
         // to all ranks
         vector<ShuffleRequest> requests_ordered = requests; //WARNING:for debug only
-
-
         distribute_requests(requests_ordered);
     } else {
         receive_requests();
@@ -461,6 +499,7 @@ WorkloadPool::play_in_the_pool()
     cout << requests_to_str(_shuffle_plan, _rank);
 
     // Shuffle data according to the plan 
+    shuffle_data( _shuffle_plan );
 
     // Actually write the file
 
