@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include "WorkloadPool.h"
+#include "Util.h"
 
 using namespace std;
 
@@ -469,7 +470,15 @@ WorkloadPool::shuffle_data(vector<ShuffleRequest> plan)
 void 
 WorkloadPool::play_in_the_pool()
 {
+    // These are for rank 0 to record 
+    // performance only
+    struct timeval start, end;
+    Performance perfs(20);
+
     MPI_Barrier(MPI_COMM_WORLD); // This mimics the start of an application.
+    if ( _rank == 0 ) {
+        start = Util::Gettime();
+    }
 
     gather_writes();
 
@@ -501,7 +510,19 @@ WorkloadPool::play_in_the_pool()
     // Shuffle data according to the plan 
     shuffle_data( _shuffle_plan );
 
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if ( _rank == 0 ) {
+        end = Util::Gettime();
+        double total_time = Util::GetTimeDurAB(start, end);
+        perfs.put("total_time", total_time);
+
+        cout << perfs.showColumns();
+    }
+
     // Actually write the file
+    // Maybe we don't need to do so
+    // We only evaluate the network cost
 
 #if 0
     int rc, ret;
