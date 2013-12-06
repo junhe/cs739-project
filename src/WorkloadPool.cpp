@@ -503,7 +503,6 @@ WorkloadPool::play_in_the_pool()
 
     // Actually write the file
 
-
 #if 0
     int rc, ret;
     MPI_Status stat;
