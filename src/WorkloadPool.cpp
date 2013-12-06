@@ -27,7 +27,7 @@ decide_target_pattern(vector<HostEntry> pool)
     assert( pool.size() > 0 );
     // Find the logical offset min, max
     // (max-min)/np is the segment size for each rank
-    off_t off_min = LLONG_MAX; // a little conservative here..
+    off_t off_min = LLONG_MAX; 
     off_t off_max = -1; // off_t should be signed! right?
     //cout << "off_min:" << off_min << ", " << LLONG_MAX << endl;
     int max_rank = 0;
@@ -437,8 +437,8 @@ WorkloadPool::shuffle_data(vector<ShuffleRequest> plan)
     {
         if ( it->rank_from == _rank ) {
             // I am the one who is sending
-            cout << _rank << "| Sending from " 
-                 << _rank << " to " << it->rank_to << endl;
+            //cout << _rank << "| Sending from " 
+                 //<< _rank << " to " << it->rank_to << endl;
             char *buf = (char*)malloc( it->length ); 
             assert(buf != NULL);
             MPI_Send(buf, it->length, MPI_CHAR, 
@@ -446,8 +446,8 @@ WorkloadPool::shuffle_data(vector<ShuffleRequest> plan)
             free(buf);
         } else if ( it->rank_to == _rank ) {
             // I am the one who is receiving
-            cout << _rank << "| Receiving from " << it->rank_from 
-                 << " at " << it->rank_to << endl;
+            //cout << _rank << "| Receiving from " << it->rank_from 
+                 //<< " at " << it->rank_to << endl;
             char *buf = (char*)malloc( it->length );
             assert(buf != NULL);
 
@@ -489,8 +489,8 @@ WorkloadPool::play_in_the_pool()
         pat = decide_target_pattern(_pool_reunion);
         requests = generate_data_flow_graph(_pool_reunion, pat);
         
-        cout << "REQUESTS IN RANK 0"<< endl;
-        cout << requests_to_str(requests, _rank);
+        //cout << "REQUESTS IN RANK 0"<< endl;
+        //cout << requests_to_str(requests, _rank);
 
         /////////////
         // This is where the scheduler should sit
@@ -504,8 +504,8 @@ WorkloadPool::play_in_the_pool()
         receive_requests();
     }
     
-    cout << ">>>>>>>>> Shuffle Plan [" << _rank << "] <<<<<<<<" << endl;
-    cout << requests_to_str(_shuffle_plan, _rank);
+    //cout << ">>>>>>>>> Shuffle Plan [" << _rank << "] <<<<<<<<" << endl;
+    //cout << requests_to_str(_shuffle_plan, _rank);
 
     // Shuffle data according to the plan 
     shuffle_data( _shuffle_plan );
