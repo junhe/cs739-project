@@ -28,6 +28,8 @@ class ShuffleRequest {
         // because the the receiver process does
         // not know who holds the data it needs.
 
+        int sendOrder;
+        int receiveOrder;
         int order; // this for scheduling.
                    // For example, if order=3,
                    // this request will be the
