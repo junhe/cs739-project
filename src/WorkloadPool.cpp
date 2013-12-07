@@ -5,9 +5,12 @@
 #include <climits>
 #include <mpi.h>
 #include <stdlib.h>
+#include <algorithm>    // std::random_shuffle
+#include <ctime> 
 
 #include "WorkloadPool.h"
 #include "Util.h"
+#include "Scheduler.h"
 
 using namespace std;
 
@@ -132,11 +135,9 @@ generate_data_flow_graph(vector<HostEntry> pool, Pattern pat)
                 request.rank_from = hentry.id;
                 request.rank_to = cur_context.index;
 
-                request.from_offset = cur_off;
-                request.to_offset = cur_off;
+                request.offset = cur_off;
                 request.length = min(cur_context.end_offset, end_context.original_offset) 
                                     - cur_off;
-                request.flag = PUTREQUEST;
                 //cout << request.to_str() << endl;
                 ret.push_back(request);
             }
@@ -161,6 +162,7 @@ requests_to_str(vector<ShuffleRequest> req, int rank)
 
     return oss.str();
 }
+
 
 ////////////////////////////////////////
 ////////////////////////////////////////
@@ -357,7 +359,6 @@ WorkloadPool::distribute_requests(vector<ShuffleRequest> requests)
     assert( _rank == 0 );
 
     int endflag = 0;
-    int totalorder = 0;
 
     vector<ShuffleRequest>::iterator it;
     for ( it = requests.begin();
@@ -365,12 +366,6 @@ WorkloadPool::distribute_requests(vector<ShuffleRequest> requests)
           it++ )
     {
         assert( it->rank_from != it->rank_to );
-
-        // WARNING
-        // For Debug only
-        // Assign it a total order
-        it->order = totalorder;
-        totalorder++;
 
         // send to the source of the data movement
         if ( it->rank_from == 0 ) {
@@ -495,10 +490,11 @@ WorkloadPool::play_in_the_pool()
         /////////////
         // This is where the scheduler should sit
         /////////////
+        vector<ShuffleRequest> requests_ordered =
+                        randomShuffle( requests, _np );
         
         // Rank 0 distributes all the ordered requests 
         // to all ranks
-        vector<ShuffleRequest> requests_ordered = requests; //WARNING:for debug only
         distribute_requests(requests_ordered);
     } else {
         receive_requests();
@@ -509,7 +505,6 @@ WorkloadPool::play_in_the_pool()
 
     // Shuffle data according to the plan 
     shuffle_data( _shuffle_plan );
-
 
     MPI_Barrier(MPI_COMM_WORLD);
     if ( _rank == 0 ) {

@@ -1,3 +1,6 @@
+#ifndef __request_H__
+#define __request_H__
+
 #include <string>
 #include <sstream>
 //
@@ -16,17 +19,8 @@ class ShuffleRequest {
         int rank_to;
         
         //need 64bits for large file
-        long long from_offset;      
-        long long to_offset;
-        long long length;
-#define PUTREQUEST 0
-#define GETREQUEST 1 
-        int flag; // PUTREQUEST or GETREQUEST
-        // Note that if flag==GETREQUEST, only 
-        // rank_to, to_offset, length are valid.
-        // The rest is uninitialized. This is 
-        // because the the receiver process does
-        // not know who holds the data it needs.
+        off_t offset;      
+        off_t length;
 
         int sendOrder;
         int receiveOrder;
@@ -39,24 +33,21 @@ class ShuffleRequest {
         std::string to_str() {
             std::ostringstream oss;
             oss 
-                << "rank_from:"
-                << rank_from << ","
-                << "rank_to:"
+                << "Flow:"
+                << rank_from << "->"
                 << rank_to << ","
-                << "from_offset:"
-                << from_offset << ","
-                << "to_offset:"
-                << to_offset << ","
+                << "offset:"
+                << offset << ","
                 << "length:"
                 << length << ","
-                << "flag:"
-                << flag << ","
-                << "order:"
-                << order ;
+                << "sendOrder:"
+                << sendOrder 
+                << "receiveOrder"
+                << receiveOrder;
             return oss.str();
         }
 };
 
 
-
+#endif
 
