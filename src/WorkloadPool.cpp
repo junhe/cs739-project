@@ -497,10 +497,15 @@ WorkloadPool::play_in_the_pool()
         /////////////
         // This is where the scheduler should sit
         /////////////
-        //vector<ShuffleRequest> requests_ordered =
-                        //randomShuffle( requests, _np );
-        vector<ShuffleRequest> requests_ordered =
-                        greedyShuffle( requests, _np );
+        vector<ShuffleRequest> requests_ordered;
+        if ( _shuffle_method == 0 ) {
+            requests_ordered = randomShuffle( requests, _np );
+        } else if ( _shuffle_method == 1 ) {
+            requests_ordered = greedyShuffle( requests, _np );
+        } else {
+            cerr << "Wrong shuffle method:" << _shuffle_method << endl;
+            exit(1);
+        }
 
 
 
