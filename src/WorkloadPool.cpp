@@ -491,8 +491,8 @@ WorkloadPool::play_in_the_pool()
         pat = decide_target_pattern(_pool_reunion);
         requests = generate_data_flow_graph(_pool_reunion, pat);
         
-        cout << "REQUESTS IN RANK 0 (Before scheduling)"<< endl;
-        cout << requests_to_str(requests, _rank);
+        //cout << "REQUESTS IN RANK 0 (Before scheduling)"<< endl;
+        //cout << requests_to_str(requests, _rank);
 
         /////////////
         // This is where the scheduler should sit
@@ -505,8 +505,8 @@ WorkloadPool::play_in_the_pool()
 
 
         
-        cout << "REQUESTS IN RANK 0 (After scheduling)"<< endl;
-        cout << requests_to_str(requests_ordered, _rank);
+        //cout << "REQUESTS IN RANK 0 (After scheduling)"<< endl;
+        //cout << requests_to_str(requests_ordered, _rank);
 
         // Rank 0 distributes all the ordered requests 
         // to all ranks

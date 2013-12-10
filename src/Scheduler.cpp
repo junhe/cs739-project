@@ -18,16 +18,6 @@ int getRandU(int nMin, int nMax)
 
 // a random scheduling, with possble stochasitic guarantees
 vector<ShuffleRequest>  randomShuffle( vector<ShuffleRequest> reqsOrig, int processNum ){
-    
-    //int *processOrderCount = new int(processNum);
-    int *processOrderCount = new int[processNum];
-    
-    for (int i=0;  i<processNum; i++){
-        processOrderCount[i] = 0;
-    }
-    
-    vector<ShuffleRequest> reqsSched;
-    
     // random permutation
     vector<int> shufflePerm;    
     // initialize
@@ -37,41 +27,12 @@ vector<ShuffleRequest>  randomShuffle( vector<ShuffleRequest> reqsOrig, int proc
     // using built-in random generator:
     srand ( unsigned ( std::time(0) ) );
     std::random_shuffle ( shufflePerm.begin(), shufflePerm.end() );
- 
-    for(size_t i=0; i<reqsOrig.size(); i++){
-        //cout<< shufflePerm[i] <<endl;
-     //   ShuffleRequest sr = reqsOrig[ shufflePerm[i] ];
-        ShuffleRequest sr;
-        
-        sr = reqsOrig[ shufflePerm[i] ];
-        
-        //sr.rank_from = reqsOrig[ shufflePerm[i] ].rank_from;
-        //sr.rank_to = reqsOrig[ shufflePerm[i] ].rank_to;
-        
-        processOrderCount[sr.rank_from]++;
-        processOrderCount[sr.rank_to]++;
-        
-      //  cout << "i: "<< i<<endl;
-        //cout<<  "sr.rank_from: " << sr.rank_from <<endl;
-        //cout<<  "processOrderCount[sr.rank_from]: " << processOrderCount[sr.rank_from] <<endl;
-        
-        sr.sendOrder = processOrderCount[sr.rank_from];
-        sr.receiveOrder = processOrderCount[sr.rank_to];
-        
-        
-       
-       // cout<<  "sr.sendOrder : " << sr.sendOrder <<endl;
-         
-        reqsSched.push_back(sr);
-        // cout <<"Push success."<<endl;
+
+    for (size_t i=0; i<reqsOrig.size(); i++) {
+        reqsOrig[i].order = shufflePerm[i];
     }
-        
-    
-    // Clean up
-    
-   // delete(processOrderCount);
-    
-    return reqsSched;
+
+    return reqsOrig;
 }
 
 
@@ -121,7 +82,7 @@ vector<ShuffleRequest> greedyShuffle( vector<ShuffleRequest> reqsOrig, int proce
         
         // degug to see how many rounds all together
         
-        cout<<"scheduledCount: "<< scheduledCount <<endl;
+        //cout<<"scheduledCount: "<< scheduledCount <<endl;
        
         // Initialize process status
         for (int i=0;  i<processNum; i++){
