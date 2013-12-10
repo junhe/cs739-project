@@ -524,8 +524,8 @@ WorkloadPool::play_in_the_pool()
     // we sort it here
     sort(_shuffle_plan.begin(), _shuffle_plan.end(), compareByOrder);
     
-    cout << ">>>>>>>>> Shuffle Plan [" << _rank << "] <<<<<<<<" << endl;
-    cout << requests_to_str(_shuffle_plan, _rank);
+    //cout << ">>>>>>>>> Shuffle Plan [" << _rank << "] <<<<<<<<" << endl;
+    //cout << requests_to_str(_shuffle_plan, _rank);
 
     // Shuffle data according to the plan 
     shuffle_data( _shuffle_plan );
