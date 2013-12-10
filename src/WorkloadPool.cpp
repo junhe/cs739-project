@@ -163,6 +163,10 @@ requests_to_str(vector<ShuffleRequest> req, int rank)
     return oss.str();
 }
 
+bool compareByOrder(const ShuffleRequest &a, const ShuffleRequest &b)
+{
+    return a.order < b.order;
+}
 
 ////////////////////////////////////////
 ////////////////////////////////////////
@@ -191,8 +195,11 @@ requests_to_str(vector<ShuffleRequest> req, int rank)
 ////////////////////////////////////////
 // WorkloadPool functions
 
-WorkloadPool::WorkloadPool(int rank, int np, string wl_path, int bufsz)
-    : _rank(rank), _np(np), _bufsize(bufsz)
+WorkloadPool::WorkloadPool(int rank, int np, 
+                           string wl_path, int bufsz,
+                           int shuffle_method)
+    : _rank(rank), _np(np), 
+      _bufsize(bufsz), _shuffle_method(shuffle_method)
 {
     if ( _rank == 0 ) {
         _fetcher = new MapFetcher(1000, wl_path.c_str());
@@ -484,24 +491,36 @@ WorkloadPool::play_in_the_pool()
         pat = decide_target_pattern(_pool_reunion);
         requests = generate_data_flow_graph(_pool_reunion, pat);
         
-        //cout << "REQUESTS IN RANK 0"<< endl;
-        //cout << requests_to_str(requests, _rank);
+        cout << "REQUESTS IN RANK 0 (Before scheduling)"<< endl;
+        cout << requests_to_str(requests, _rank);
 
         /////////////
         // This is where the scheduler should sit
         /////////////
+        //vector<ShuffleRequest> requests_ordered =
+                        //randomShuffle( requests, _np );
         vector<ShuffleRequest> requests_ordered =
-                        randomShuffle( requests, _np );
+                        greedyShuffle( requests, _np );
+
+
+
         
+        cout << "REQUESTS IN RANK 0 (After scheduling)"<< endl;
+        cout << requests_to_str(requests_ordered, _rank);
+
         // Rank 0 distributes all the ordered requests 
         // to all ranks
         distribute_requests(requests_ordered);
     } else {
         receive_requests();
     }
+
+    // now every rank has its own requests
+    // we sort it here
+    sort(_shuffle_plan.begin(), _shuffle_plan.end(), compareByOrder);
     
-    //cout << ">>>>>>>>> Shuffle Plan [" << _rank << "] <<<<<<<<" << endl;
-    //cout << requests_to_str(_shuffle_plan, _rank);
+    cout << ">>>>>>>>> Shuffle Plan [" << _rank << "] <<<<<<<<" << endl;
+    cout << requests_to_str(_shuffle_plan, _rank);
 
     // Shuffle data according to the plan 
     shuffle_data( _shuffle_plan );

@@ -40,8 +40,10 @@ class ShuffleRequest {
                 << offset << ","
                 << "length:"
                 << length << ","
+                << "order:"
+                << order << ","
                 << "sendOrder:"
-                << sendOrder 
+                << sendOrder << ","
                 << "receiveOrder"
                 << receiveOrder;
             return oss.str();

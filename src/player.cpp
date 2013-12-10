@@ -27,14 +27,17 @@ int main(int argc, char **argv)
     MPI_Comm_rank (MPI_COMM_WORLD, &rank);/* get current process id */
     MPI_Comm_size (MPI_COMM_WORLD, &size);/* get number of processes */
 
-    if ( argc != 2 ) {
-        if ( rank == 0 )
-            cout << "usage: mpirun -np N " << argv[0] << " workload-file" << endl;
+    if ( argc != 3 ) {
+        if ( rank == 0 ) {
+            cout << "usage: mpirun -np N " << argv[0] 
+                 << " workload-file shuffle-method[0|1]" << endl;
+            cout << "Shuffle-method: 0-random, 1-greedy" << endl;
+        }
         MPI_Finalize();
         exit(1);
     }
 
-    WorkloadPool wlpool (rank, size, argv[1]); 
+    WorkloadPool wlpool (rank, size, argv[1], 4096, atoi(argv[2])); 
 
 //#define DEBUG
 #ifdef DEBUG

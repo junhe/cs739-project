@@ -37,7 +37,8 @@ class WorkloadPool {
         void receive_requests();
         void shuffle_data(std::vector<ShuffleRequest> plan);
 
-        WorkloadPool(int rank, int np, std::string wl_path, int bufsz=4096);
+        WorkloadPool(int rank, int np, std::string wl_path, int bufsz,
+                     int shuffle_method);
         ~WorkloadPool();
 
         std::vector<HostEntry> _pool;
@@ -48,6 +49,7 @@ class WorkloadPool {
         int _rank;
         int _np;
         size_t _bufsize; // buf to be send between ranks
+        int _shuffle_method; // 0: random, 1: greedy
         
         // this is only for rank0
         MapFetcher *_fetcher; 
