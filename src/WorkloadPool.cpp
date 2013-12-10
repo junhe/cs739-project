@@ -61,6 +61,10 @@ decide_target_pattern(vector<HostEntry> pool)
     //cout << "segment_size:" << segment_size << endl;
     if ( mod != 0 ) {
         cout << "WARNING: mod is not zero! :" << mod << endl;
+        cout << "Hacking around!!!!!!!!!!!!!" << endl;
+        // HACK!!!!
+        // WARNING!!!
+        segment_size = 1 + (off_max - off_min) / np;
     }
     Pattern ret;
     ret.start_offset = off_min;
@@ -378,6 +382,8 @@ WorkloadPool::distribute_requests(vector<ShuffleRequest> requests)
         if ( it->rank_from == 0 ) {
             _shuffle_plan.push_back(*it);
         } else {
+            assert( it->rank_from < _np );
+            assert( it->rank_from >= 0 );
             MPI_Send(&endflag, 1, MPI_INT, 
                     it->rank_from, 1, MPI_COMM_WORLD);
             MPI_Send(&(*it), sizeof(ShuffleRequest), MPI_CHAR, 
@@ -388,6 +394,11 @@ WorkloadPool::distribute_requests(vector<ShuffleRequest> requests)
         if ( it->rank_to == 0 ) {
             _shuffle_plan.push_back(*it);
         } else {
+            if ( it->rank_to >= _np ) {
+                cout << it->to_str() << endl;
+            }
+            assert( it->rank_to < _np );
+            assert( it->rank_to >= 0 );
             MPI_Send(&endflag, 1, MPI_INT, 
                     it->rank_to, 1, MPI_COMM_WORLD);
             MPI_Send(&(*it), sizeof(ShuffleRequest), MPI_CHAR, 
@@ -519,7 +530,7 @@ WorkloadPool::play_in_the_pool()
     } else {
         receive_requests();
     }
-
+    
     // now every rank has its own requests
     // we sort it here
     sort(_shuffle_plan.begin(), _shuffle_plan.end(), compareByOrder);
