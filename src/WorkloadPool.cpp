@@ -564,6 +564,7 @@ WorkloadPool::play_in_the_pool()
             perfs.put("shuffle_method", "greedy");
         } else {
             perfs.put("shuffle_method", "UNDEFINED");
+
         }
 
         cout << perfs.showColumns();
