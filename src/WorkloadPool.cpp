@@ -486,6 +486,8 @@ WorkloadPool::play_in_the_pool()
     // These are for rank 0 to record 
     // performance only
     struct timeval start, end;
+    off_t bytes_moved;
+    int n_movements;
     Performance perfs(20);
 
     MPI_Barrier(MPI_COMM_WORLD); // This mimics the start of an application.
@@ -501,6 +503,16 @@ WorkloadPool::play_in_the_pool()
 
         pat = decide_target_pattern(_pool_reunion);
         requests = generate_data_flow_graph(_pool_reunion, pat);
+
+        n_movements = requests.size();
+        bytes_moved = 0;
+        vector<ShuffleRequest>::iterator it;
+        for ( it = requests.begin();
+              it != requests.end();
+              it++ )
+        {
+            bytes_moved += it->length;
+        }
         
         //cout << "REQUESTS IN RANK 0 (Before scheduling)"<< endl;
         //cout << requests_to_str(requests, _rank);
@@ -518,9 +530,6 @@ WorkloadPool::play_in_the_pool()
             exit(1);
         }
 
-
-
-        
         //cout << "REQUESTS IN RANK 0 (After scheduling)"<< endl;
         //cout << requests_to_str(requests_ordered, _rank);
 
@@ -546,6 +555,16 @@ WorkloadPool::play_in_the_pool()
         end = Util::Gettime();
         double total_time = Util::GetTimeDurAB(start, end);
         perfs.put("total_time", total_time);
+        perfs.put("bytes_moved", bytes_moved);
+        perfs.put("bandwidth", bytes_moved/total_time);
+        perfs.put("num_of_movements", n_movements);
+        if ( _shuffle_method == 0 ) {
+            perfs.put("shuffle_method", "random");
+        } else if ( _shuffle_method == 1 ) {
+            perfs.put("shuffle_method", "greedy");
+        } else {
+            perfs.put("shuffle_method", "UNDEFINED");
+        }
 
         cout << perfs.showColumns();
     }

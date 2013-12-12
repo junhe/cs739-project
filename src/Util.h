@@ -37,6 +37,7 @@ class Performance {
         
         void put(const char *key, const char *val);
         void put(const char *key, int val);
+        void put(const char *key, long long val);
         void put(const char *key, double val);
         void put(const char *key, float val);
         std::string showColumns();

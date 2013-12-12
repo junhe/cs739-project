@@ -217,6 +217,15 @@ Performance::put(const char *key, int val)
 }
 
 void
+Performance::put(const char *key, long long val)
+{
+    ostringstream oss;
+    oss << val;
+    put(key, oss.str().c_str());
+}
+
+
+void
 Performance::put(const char *key, double val)
 {
     ostringstream oss;
