@@ -555,7 +555,7 @@ WorkloadPool::play_in_the_pool()
         end = Util::Gettime();
         double total_time = Util::GetTimeDurAB(start, end);
         perfs.put("total_time", total_time);
-        perfs.put("bytes_moved", bytes_moved);
+        perfs.put("bytes_moved", (long long)bytes_moved);
         perfs.put("bandwidth(MB)", bytes_moved/(1024*1024*total_time));
         perfs.put("num_of_movements", n_movements);
         if ( _shuffle_method == 0 ) {
