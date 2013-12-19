@@ -100,23 +100,134 @@ Jun He, Jia Xu\\
 \end{abstract}
 
 %\keywords{Block allocation, ext4, file system} % NOT required for Proceedings
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
+High performance computing is critical to scientific
+discoveries. 
+
+Storage system in HPC system faces great challenges.
+
+PLFS can help.
+
+PLFS has limitations.
+
+We propose to create patterns.
+
+Scheduling of data movements is essential.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Related work}
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{PLFS background}
+What's N-1 write. What's N-N writes.
 
+Scientists like N-1 writes.
+
+
+But N-1 writes hurt performance.
+
+PLFS has been developed to mitigate this issue
+by transparently transferring N-1 writes to N-N
+write.
+
+An example of how it works.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Creating pattern}
+\subsection{The pattern detection optimization}
+local pattern
 
+global pattern
+
+\subsection{Problem of irregular writes}
+Show LANL App2 graph as an example.
+
+\subsection{Shuffling data to create patterns}
+How it works: move data to another process and let
+that process to write on behalf of the original writer.
+
+\subsection{Discussion}
+What's a good patterns to make among 
+all possible patterns?
+
+How can we choose a pattern to minimize
+amount of data to be shuffled?
+
+How can we decide if it is worth it to
+shuffle data? - the cost of shuffling might be
+too high.
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Scheduling data movements}
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Implementation}
 
+Framework: 
+the replayer, 
+
+the master, 
+
+the pattern decider: the data structures
+
+the scheduler: data structures
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Evaluation}
+Test setup
 
+Test log size compression
+
+Shuffling bandwidth
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Future work}
+Better pattern
 
+Better scheduling
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusions}
+
+
+
 
 
 \bibliographystyle{abbrv}
