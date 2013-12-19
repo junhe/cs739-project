@@ -171,7 +171,7 @@ plfs\_write(), to open or write a file.
 Second, the application can use a MPI (Message Passing
 Interface) library that has been linked with PLFS. 
 Third, the PLFS can be mounted as a FUSE 
-\footnote{FUSE stands for file system in user space}
+\footnote{FUSE stands for file system in user space. fuse.sourceforge.net}
 file system.
 PLFS sits on top of a 'real' cluster file system.
 Or we can consider PLFS as a middleware between
@@ -225,16 +225,38 @@ If we shuffle data in a way that the resulting
 writes form a pattern, PLFS can compress the log.
 
 Shuffling data to create regular write pattern
-leads to additional data movement across
+leads to additional data movements across
 the network. Scheduling of data movements 
 is essential for
 the proposed idea to work efficiently.
+The order for each process to send/receive
+data needs to be carefully calculated
+so that we can have as many concurrent
+data movements between processes as possible.
+In this project, we propose an approach 
+to schedule the data movement activities
+to reduce data movement time.
+
+This report is organized as follows.
+Section~\ref{sec:related-work} introduces
+related work. We describes the background
+of PLFS in section~\ref{sec:plfs-background}.
+In section~\ref{sec:creating-pattern},
+we describe how to create pattern by data
+shuffling.
+In section~\ref{sec:scheduling-data-movements}
+we describe how to carefully schedule data
+movements to reduce data shuffling overhead.
+The implementation details are in section~\ref{sec:implementation}.
+Future work is in section~\ref{sec:future-work}.
+Section~\ref{sec:conclusions} concludes the paper.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Related work}
+\label{sec:related-work}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -242,25 +264,60 @@ the proposed idea to work efficiently.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{PLFS background}
-What's N-1 write. What's N-N writes.
+\label{sec:plfs-background}
+In HPC environment, many processes run concurrently.
+There are several ways for them to write data to
+file. One is called \emph{N-1}. It means N processes
+write to one file concurrently.
+Another is called \emph{N-N}, which means N processes
+write a N files. 
 
-Scientists like N-1 writes.
+Generally, N-1 write is slower than N-N write. 
+That is because, in file systems with locks, with
+N-1 writes, when
+one process is writing a segment of data, other
+processes cannot write it. This serializes the
+write to that segment. With N-N write, this is 
+not a problem because each process writes
+its own file. Nobody contends for data. 
+Due to reasons like this, N-1 write can
+be orders of magnitude slower than N-N write.
+Although N-1 write is slower than N-N, users
+like to use N-1 write. Having only one file
+is easier for their data management. 
 
-
-But N-1 writes hurt performance.
+\begin{figure}[ht]
+    \includegraphics
+    	[trim=0mm 0mm 0mm 0mm, clip, width=80mm]
+    	{plfs-logical-physical}
+    \caption{PLFS transparently transfers N-1 write to N-N write.}
+    \label{fig:plfs-logical-physical}
+\end{figure}
 
 PLFS has been developed to mitigate this issue
 by transparently transferring N-1 writes to N-N
-write.
+write. Figure~\ref{fig:plfs-logical-physical}
+shows how it works. From the application's
+perspective, the data is the same as it were
+without PLFS. The PLFS provides this illusion
+to application so the application can work 
+without modification. However, internally,
+PLFS reorganizes data so that there are
+one physical file for each process. For example,
+if there are 6 processes writing to one file
+called \emph{fileshared}. The application
+sees only one file in PLFS. But PLFS actually
+stores 6 data files in the underlying
+cluster file system. 
 
-An example of how it works.
-
+Since the data is reorganized. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Creating pattern}
+\label{sec:creating-pattern}
 \subsection{The pattern detection optimization}
 local pattern
 
@@ -292,6 +349,7 @@ too high.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Scheduling data movements}
+\label{sec:scheduling-data-movements}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -299,6 +357,7 @@ too high.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Implementation}
+\label{sec:implementation}
 
 Framework: 
 the replayer, 
@@ -315,6 +374,7 @@ the scheduler: data structures
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Evaluation}
+\label{sec:evaluation}
 Test setup
 
 Test log size compression
@@ -327,6 +387,7 @@ Shuffling bandwidth
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Future work}
+\label{sec:future-work}
 Better pattern
 
 Better scheduling
@@ -337,6 +398,7 @@ Better scheduling
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusions}
+\label{sec:conclusions}
 
 
 
