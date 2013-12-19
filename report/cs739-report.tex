@@ -46,8 +46,8 @@
 
 \begin{document}
 
-\title{Analyzing and Improving ext4 Block Allocation Policies
-\titlenote{This is a project report of course CS736 Advanced Operating System
+\title{Creating Patterns by Data Shuffling \\for Distributed I/O Acceleration
+\titlenote{This is a project report of course CS739 Distributed System
 at University of Wisconsin, Madison.}
 }
 
@@ -97,6 +97,20 @@ Jun He, Jia Xu\\
 
 \maketitle
 \begin{abstract}
+Storage performance is critical for high
+performance computer systems. PLFS (Parallel
+Log-structured File System) has been developed
+and it is able to speed up storage systems by
+several orders of magnitudes. However, PLFS
+is limited by its log, which grow to a
+large size as the number of writes increase.
+We propose to shuffle data among distributed
+processes to make data writes more regular,
+in order to enable PLFS's log compression
+mechanism. The results show that we can reduce
+the size of log significantly. In addition,
+we try to reduce the data movement overhead
+by careful scheduling.
 \end{abstract}
 
 %\keywords{Block allocation, ext4, file system} % NOT required for Proceedings
@@ -106,17 +120,115 @@ Jun He, Jia Xu\\
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
 High performance computing is critical to scientific
-discoveries. 
+discoveries. It is widely used for weather forecasting,
+DNA decoding, Physics simulation, financial data processing
+and so on. Usually, high performance computer systems are
+equipped with high-speed and low-latency
+interconnection. The compute nodes frequently exchange
+data with each other. Data on one node usually has
+dependency with data on another node. 
+
+\begin{figure}[ht]
+    \includegraphics
+    	[trim=0mm 110mm 150mm 0mm, clip, width=80mm]
+    	{arch}
+    \caption{An architecture of High Performance Computing system}
+    \label{fig:arch}
+\end{figure}
+
+\begin{figure}[ht]
+    \includegraphics
+    	[trim=0mm 110mm 150mm 0mm, clip, width=80mm]
+    	{layers}
+    \caption{Software stack with PLFS}
+    \label{fig:layers}
+\end{figure}
 
 Storage system in HPC system faces great challenges.
+Figure~\ref{fig:arch} shows an architecture of
+HPC system. Thousands of compute nodes are connected
+with each other by the high-speed network. A storage
+cluster is also attached to the network. There is
+a cluster file system on the storage system. The popular
+choices of cluster file system are GPFS from IBM,
+Lustre from Intel (recently acquired by Intel),
+PanFS from Panasas, and PVFS from Argonne 
+National Laboratory. Applications like large-scale
+simulations generate a great amount of data. The storage
+system needs to provide TBs/sec or even PBs/sec
+bandwidth to meet the requirements of the applications.
+Using the storage system efficiently is hard. The
+storage system performance highly depends the way the
+application writes the data.
 
-PLFS can help.
+Parallel Log-structure File System has been developed
+at Los Alamos National Lab to accelerate HPC storage
+systems. The software stack is shown in Figure~\ref{fig:layers}
+PLFS is presented as a library. Currently, there
+are three ways of using PLFS. First, the application
+can directly use PLFS calls, such as plfs\_open(),
+plfs\_write(), to open or write a file. 
+Second, the application can use a MPI (Message Passing
+Interface) library that has been linked with PLFS. 
+Third, the PLFS can be mounted as a FUSE 
+\footnote{FUSE stands for file system in user space}
+file system.
+PLFS sits on top of a 'real' cluster file system.
+Or we can consider PLFS as a middleware between
+the application and the real cluster file system.
+PLFS reorganizes the data accesses before the
+data reaches the cluster file system. 
+Results show that PLFS is able to speed up
+the storage system by up to 150 times. 
 
-PLFS has limitations.
+However, PLFS has limitations. Since PLFS reorganizes
+data, it needs a way to map the application's view
+of the file and the physical view of the file. 
+The log in PLFS serves this purpose. The log
+records the information of each write the applicaion
+conducts. As a result, the size of the log
+is proportional to the number of writes the
+application conducts. This leads to the problem
+that the large log cannot be used efficiently
+or it may even crash the file system in extreme
+cases. Recently, a new feature has been proposed
+to PLFS so that it can compress the log if the 
+writes have regular patterns. This works
+for most of the applications. But there are
+some applications that do not have regular 
+write patterns or occasionally lose patterns,
+in which case the pattern compression cannot
+take effect. 
 
-We propose to create patterns.
+\begin{figure}[ht]
+    \includegraphics
+    	[trim=0mm 110mm 150mm 0mm, clip, width=80mm]
+    	{layers-shuffle}
+    \caption{Software stack with data shuffling}
+    \label{fig:layers-shuffle}
+\end{figure}
 
-Scheduling of data movements is essential.
+In order to keep a small log for PLFS even if
+there is no regular write patterns, we propose
+to create patterns by shuffling data.
+Figure~\ref{fig:layers-shuffle} shows where
+the data shuffling component resides. It resides
+inside the PLFS library but above other
+PLFS components. Using the data shuffling
+layer, we move data from one process to another
+process. The later process will write the data
+on behalf of the original process. The
+data movements are transparent to the rest of
+PLFS. The rest of the PLFS will treat the writes
+as it was coming from the application directly.
+If we shuffle data in a way that the resulting
+writes form a pattern, PLFS can compress the log.
+
+Shuffling data to create regular write pattern
+leads to additional data movement across
+the network. Scheduling of data movements 
+is essential for
+the proposed idea to work efficiently.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
