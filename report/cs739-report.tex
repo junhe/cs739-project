@@ -723,7 +723,24 @@ totally distributed approach.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusions}
 \label{sec:conclusions}
+In this project, we investigate
+the limitation of PLFS - its log.
+We propose to solve the problem
+by shuffling data between
+distributed processes to create 
+regular write patterns, so that
+the pattern log compression feature
+of PLFS can be enabled. 
 
+This approach can significantly
+reduce the log size and thus remove
+the limitation of PLFS. The cost
+of the shuffling data is reduced
+by carefully scheduling the data movement
+activities. We propose a scheduling
+algorithm called M3F. We show
+that it can increase the bandwidth
+for an important application by about 50\%.
 
 
 
