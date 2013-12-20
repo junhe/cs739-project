@@ -457,7 +457,7 @@ and compress the log to a minimum size.
 
 Currently, we create the simplest pattern.
 That means we create a pattern in which
-each process write $TotalBytes/NumberOfProcesses$ bytes.
+each process write $TotalBytes/$ $NumberOfProcesses$ bytes.
 In other words, there will be $n$ segments,
 where n is the number of processes. 
 The size of a segment is $TotalBytes/NumberOfProcesses$.
@@ -521,21 +521,6 @@ a very important issue in designing such a
 system. We keep this as future work.
 
 
-
-\subsection{Discussion}
-What's a good patterns to make among 
-all possible patterns?
-
-How can we choose a pattern to minimize
-amount of data to be shuffled?
-
-How can we decide if it is worth it to
-shuffle data? - the cost of shuffling might be
-too high.
-
-
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -551,14 +536,56 @@ too high.
 \section{Implementation}
 \label{sec:implementation}
 
-Framework: 
-the replayer, 
+\begin{figure}[ht]
+    \includegraphics
+    	[trim=0mm 0mm 0mm 0mm, clip, width=80mm]
+    	{framework}
+    \caption{System design}
+    \label{fig:framework}
+\end{figure}
 
-the master, 
+Figure~\ref{fig:framework} shows the framework
+of the system. Previously, many application
+write traces are collected and available online[].
+The traces have pid, offset, length, indicating
+which process writes to which part of the file.
+To use these traces, we build a trace fetcher
+to read the traces and sent them to
+replayer processes. The replayer processes
+do what is described in the traces. For example,
+if there are four processes in the trace,
+there will be four processes spawned by MPI.
+Each process will do the job assigned to it.
 
-the pattern decider: the data structures
+The writes from the trace replayer will
+reach the shuffling layer. The shuffling
+layer buffers the data. It then collects
+all the writes from all the processes
+to a master process. The master process
+uses the pattern decider (section~\ref{sec:creating-pattern})
+to find a target pattern we want to create.
+The pattern decider will also compare
+the current writes and the target writes
+to figure out what data should be moved.
+This information is represented as a graph.
+Later, the graph is passed to shuffling
+scheduler. The scheduler will do
+order the data movement activities.
+Currently, there are two scheduling
+algorithms - random and M3F. The output
+of the scheduler will also be a graph,
+but each edge has been assigned with
+a order number. 
 
-the scheduler: data structures
+The scheduler graph is passed to the communicator.
+The communicator distributes the edge
+only to its associated processes. After
+receiving all the edges, the process
+will sort the edges by their order number
+and do the operation indicated by the edges
+one by one. After all the operations are done,
+we write the shuffled data to PLFS core. 
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -567,12 +594,105 @@ the scheduler: data structures
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Evaluation}
 \label{sec:evaluation}
-Test setup
+\subsection{Setup}
+The experiments are conducted at 
+cluster with 64 nodes.
+Each node is with 8 cores and 16GB RAM.
+The operating system on the nodes
+is Linux with kernel 2.6.32.
+The communication between
+processes is by OpenMPI 1.4.
 
-Test log size compression
+\subsection{Log size compression}
+To see how much the data shuffling
+can reduce the log size, we investigated
+traces of two applications - LANL app2
+and Chombo. 
 
-Shuffling bandwidth
+LANL app2 is an application with 
+regular write pattern for the whole
+file but the middle part of the file.
+Since we only care about how much
+we can compress the irregular write
+log by shuffling data, we trimmed off
+the parts that have regular patterns.
+That means the trace fetcher only
+fetches the irregular writes and
+feeds them to the replayer. 
 
+Chombo is an application with no
+obvious patterns at all. We visualized
+the writes to a chombo file
+and found several groups of writes.
+These writes are clustered at
+certain parts of the file, but they
+are irregular. We guess that
+is because there are several `master'
+processes holding a write job queue.
+Other processes fetch jobs from the
+queue after they finish their previous job.
+In this way, which process gets to write
+what data depends how fast they finish
+the jobs.
+
+Although deciding a good pattern is hard,
+shuffling the data to compress
+the log will always work. Figure~\ref{fig:logcompression}
+shows the compression rates of three
+cases - chombo with 128 proc, chombo with 64 proc,
+LANL app2 with 128 proc. For all these
+cases, the final log size will always be
+about 100 bytes, thanks to data shuffling. 
+Final log contains only one \emph{pattern} entry
+instead of one entry for one write.
+The compression rate is higher when the number
+of writes is higher. Because no matter how
+many writes the application has, there will
+be only one final pattern entry. In the 
+case of Figure~\ref{fig:logcompression},
+chombo-128proc has the most writes.
+So it has the highest compression rate. 
+Note that we did not run the test on Pattern PLFS,
+this is done theoretically. However,
+based on our knowledge, we believe this will be the case.
+
+\begin{figure}[ht]
+    \includegraphics
+    	[trim=0mm 0mm 0mm 0mm, clip, width=80mm]
+    	{logcompression}
+    \caption{Log compression rates}
+    \label{fig:logcompression}
+\end{figure}
+
+\subsection{Shuffling bandwidth}
+As we trade the data shuffling overhead
+with the log size improvement,
+we want to make sure that we can 
+reduce the overhead as much as possible.
+We try to do this by carefully scheduling
+the data movement activities. 
+
+\begin{figure}[ht]
+    \includegraphics
+    	[trim=0mm 0mm 0mm 0mm, clip, width=80mm]
+    	{bw}
+    \caption{Data shuffling bandwidth}
+    \label{fig:bw}
+\end{figure}
+
+Figure~\ref{fig:bw} shows that our proposed
+algorithm is almost the same as the stochastic
+algorithm. This might be because the random
+solution is already close to optimal. Spending
+time to carefully schedule it did not help. 
+For the LANL app2 case, our proposed algorithm
+does have about 50\% higher bandwidth. We plan 
+to future investigate the reason why
+random solution is close to what we propose.
+Note that, due to the limitation of our prototype,
+we did not use the whole trace for our test in the
+chombo cases. For LANL app2, we used the traces
+with irregular writes.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -580,9 +700,21 @@ Shuffling bandwidth
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Future work}
 \label{sec:future-work}
-Better pattern
+Finding better pattern with techniques
+from digital signal processing is an interesting
+topic. Since a better pattern can dramatically
+reduces the size of data we need
+to move and makes this data shuffling
+idea more practical. 
 
-Better scheduling
+We also plan to find a better shuffling
+design. Right now, we have one master process
+that collects all the write information of all
+the processes running. This effectively
+places a barrier in all the processes. We
+might be able to remove this barrier by
+removing the master and replace it with a
+totally distributed approach.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
