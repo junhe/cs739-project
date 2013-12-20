@@ -310,7 +310,33 @@ sees only one file in PLFS. But PLFS actually
 stores 6 data files in the underlying
 cluster file system. 
 
-Since the data is reorganized. 
+\begin{figure}[ht]
+    \includegraphics
+    	[trim=0mm 0mm 0mm 0mm, clip, width=80mm]
+    	{logexample}
+    \caption{An example of log}
+    \label{fig:logexample}
+\end{figure}
+
+Since the data is reorganized, we need to way
+to map the application's view of the file and
+the actual physical data. This is where the log
+comes to help. For example, if there are
+two processes writing to the same file on PLFS,
+in the way shown in Figure~\ref{fig:logexample},
+there will be two types of files in the
+underlying cluster file system. There will
+be two data files, storing data from the processes,
+and two more log files, storing the mapping
+information. As shown in the figure, there
+are one-to-one mapping from the logical view
+to the physical data. When the application reads
+the logical file, PLFS will read the logs first
+to build the mapping in memory. Later, when
+the application reads some specific data, PLFS
+looks up the physical location of the data in the
+mapping table. Finally, PLFS will go to the physical
+location to get the data. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -319,16 +345,180 @@ Since the data is reorganized.
 \section{Creating pattern}
 \label{sec:creating-pattern}
 \subsection{The pattern detection optimization}
-local pattern
+PLFS compresses log by detecting write patterns.
+This works because in practices, many of the
+HPC applications present write patterns. 
+The pattern here means the both the write offsets
+and lengths are regular. For example, the following
+code has a write pattern.
 
-global pattern
+write(0, 1);\\
+write(8, 1);\\
+write(16, 1);\\
+write(24, 1);\\
+
+The following code has a more complicated write
+pattern:
+
+write(0, 1);\\
+write(3, 1);\\
+write(8, 1);\\
+write(11, 1);\\
+write(16, 1);\\
+write(19, 1);\\
+write(24, 1);\\
+write(27, 1);\\
+
+There are many applications that has write patterns.
+The MILC code is a set of applications
+for quantum chromodynamics. There are three write
+modes in the MILC code. All of them present
+regular write patterns. The FLASH code also
+present write patterns. Specifically, the FLASH
+code writes a file header without pattern but it
+writes the rest of the file with pattern. 
+There are also three anonymous applications
+from Los Alamos National Lab that have write
+patterns. 
+
+
+There are two kinds of patterns. One is local pattern.
+One is global. Local pattern means a single process's
+offset-length pairs have pattern. Global
+pattern means the offset-length pairs from all processes
+can form a pattern. With the proposed pattern-detection
+feature, PLFS can detect this kind of patterns.
 
 \subsection{Problem of irregular writes}
-Show LANL App2 graph as an example.
+Unfortunately, there are some applications that do
+not have patterns. For example, an LANL application 
+has three write mode. One mode writes a part of
+the file without pattern. This part of the file
+is illustrated in Figure~\ref{fig:lanl2pattern}.
+Each color bulk represents the size of the hole
+between data. Therefore, different color indicate
+different hole sizes. 
+Each row in the figure
+shows the holes written by a process. 
+The X axis is the offset of the file.
+Hole size is a good 
+indicator of patterns. For simplicity, 
+we can think that ``places with the same color
+has have the same pattern". So, we can see
+that, initially, the writes have patterns (the green
+part). But later, the `second column' becomes
+colorful, indicating different hole sizes. This 
+means they are irregular writes. In the `middle
+columns', the pink bulks indicate good patterns.
+Later, the writes become irregular again.
+Finally, they go back to green. 
+
+\begin{figure}[ht]
+    \includegraphics
+    	[trim=0mm 0mm 0mm 0mm, clip, width=80mm]
+    	{lanl2pattern}
+    \caption{Irregular writes of LANL application 2.}
+    \label{fig:lanl2pattern}
+\end{figure}
+
+This kind of irregular writes disables
+the log compression in PLFS because it relies
+on patterns. As a consequence, the size of
+the log grows. 
 
 \subsection{Shuffling data to create patterns}
-How it works: move data to another process and let
-that process to write on behalf of the original writer.
+If we can convert the irregular writes to regular
+writes, we will be able to enable log compression
+again. This can be done by moving (shuffling)
+data between processes before the pattern detection
+happens. Basically, we insert a new layer
+between the application and the PLFS pattern
+detection. The application will write to
+this layer without any modification. 
+The PLFS pattern detector will work as if
+the writes are from the application directly. 
+
+\begin{figure}[ht]
+    \includegraphics
+    	[trim=0mm 0mm 0mm 0mm, clip, width=80mm]
+    	{data-shuffling-example}
+    \caption{Data shuffling example.}
+    \label{fig:data-shuffling-example}
+\end{figure}
+
+As shown in Figure~\ref{fig:data-shuffling-example},
+the application has four processes writing to 
+the same file. They do not have an obvious regular
+pattern. In order to create a regular pattern,
+we move 1 byte from P2 to P1. After the movement, 
+each process will have 2 bytes to write. In this
+case, PLFS will be able to detect the pattern
+and compress the log to a minimum size.
+
+Currently, we create the simplest pattern.
+That means we create a pattern in which
+each process write $TotalBytes/NumberOfProcesses$ bytes.
+In other words, there will be $n$ segments,
+where n is the number of processes. 
+The size of a segment is $TotalBytes/NumberOfProcesses$.
+Apparently, this might not be the best pattern to make.
+A good pattern is a pattern that requires
+the minimum amount of data movements, in terms
+of the size of data to be moved and the number
+of movements. There are patterns that 
+PLFS can detect and require minimum amount
+of movements.
+
+A brutal force solution of finding the best
+pattern to create is to try different patterns
+that can be detected by PLFS on a model.
+The model has two inputs. One is the current
+writes. One is the writes with the pattern
+to be created. By this model, we can easily
+find out how much data has to be moved.
+Given that
+there can be an infinite number of patterns
+meet this requirement, we need to limit
+the number of tries we want to make. It
+can be limited by a upper bound number, or 
+a timeout. We pick the pattern that will
+lead to the least amount of data movement.
+
+A smarter approach would start from
+the current writes. By analyzing the 
+current writes, we want to find a pattern
+that is very `close' to the current writes.
+The `close' here means that by shifting
+a very small number of data, we get a 
+regular pattern. An analogy of this is
+the real-world decoration pattern. If
+we look at it from a long distance, 
+a small variation of the pattern
+cannot be seen. But if we look closely,
+the small variation may bother us
+and we may not consider it as regular 
+pattern. A potential approach to 
+find a close pattern of the writes
+is by techniques in digital signal processing (DSP).
+The offsets and lengths of writes are 
+considered as signals.
+The subtle shift is considered as noise.
+The objective is to `smooth' the signal
+so we can find a target regular pattern.
+
+In practice, the brutal force approach
+may be enough. Because we observed that 
+most HPC applications do segmented writes
+- several processes write a part of a big
+file. The size of each write is usually
+the same. If there are more complicated
+cases, the DSP approach may help. 
+Since in this project we only try to build
+a working prototype for future development,
+we do not focus on finding the best pattern
+to be created. However, we admit this is
+a very important issue in designing such a
+system. We keep this as future work.
 
 \subsection{Discussion}
 What's a good patterns to make among 
