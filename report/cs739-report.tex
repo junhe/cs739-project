@@ -89,7 +89,7 @@ at University of Wisconsin, Madison.}
 Jun He, Jia Xu\\
        \affaddr{Department of Computer Sciences}\\
        \affaddr{University of Wisconsin, Madison}\\
-       \email{\{jhe, jia\}@cs.wisc.edu}
+       \email{\{jhe, jiaxu\}@cs.wisc.edu}
 }
 % There's nothing stopping you putting the seventh, eighth, etc.
 % author on the opening page (as the 'third row') but we ask,
@@ -143,13 +143,6 @@ dependency with data on another node.
     \label{fig:arch}
 \end{figure}
 
-\begin{figure}[ht]
-    \includegraphics
-    	[trim=-10mm 140mm 170mm 0mm, clip, width=80mm]
-    	{layers}
-    \caption{Software stack with PLFS}
-    \label{fig:layers}
-\end{figure}
 
 Storage system in HPC system faces great challenges.
 Figure~\ref{fig:arch} shows an architecture of
@@ -167,6 +160,14 @@ bandwidth to meet the requirements of the applications.
 Using the storage system efficiently is hard. The
 storage system performance highly depends the way the
 application writes the data.
+
+\begin{figure}[htb]
+    \includegraphics
+    	[trim=-10mm 140mm 170mm 0mm, clip, width=80mm]
+    	{layers}
+    \caption{Software stack with PLFS}
+    \label{fig:layers}
+\end{figure}
 
 Parallel Log-structure File System (PLFS) \cite{bent2009plfs}
 has been developed
@@ -208,13 +209,6 @@ write patterns or occasionally lose patterns,
 in which case the pattern compression cannot
 take effect. 
 
-\begin{figure}[ht]
-    \includegraphics
-    	[trim=0mm 130mm 180mm 0mm, clip, width=80mm]
-    	{layers-shuffle}
-    \caption{Software stack with data shuffling}
-    \label{fig:layers-shuffle}
-\end{figure}
 
 In order to keep a small log for PLFS even if
 there is no regular write patterns, we propose
@@ -231,6 +225,14 @@ PLFS. The rest of the PLFS will treat the writes
 as it was coming from the application directly.
 If we shuffle data in a way that the resulting
 writes form a pattern, PLFS can compress the log.
+
+\begin{figure}[ht]
+    \includegraphics
+    	[trim=0mm 130mm 180mm 0mm, clip, width=80mm]
+    	{layers-shuffle}
+    \caption{Software stack with data shuffling}
+    \label{fig:layers-shuffle}
+\end{figure}
 
 Shuffling data to create regular write pattern
 leads to additional data movements across
