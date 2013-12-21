@@ -193,12 +193,12 @@ The log in PLFS serves this purpose. The log
 records the information of each write the applicaion
 conducts. As a result, the size of the log
 is proportional to the number of writes the
-application conducts. This leads to the problem
+application. This leads to the problem
 that the large log cannot be used efficiently
 or it may even crash the file system in extreme
 cases. Recently, a new feature has been proposed
 to PLFS so that it can compress the log if the 
-writes have regular patterns. This works
+writes have regular patterns\cite{HeBTGGMS13}. This works
 for most of the applications. But there are
 some applications that do not have regular 
 write patterns or occasionally lose patterns,
@@ -243,8 +243,7 @@ to schedule the data movement activities
 to reduce data movement time.
 
 This report is organized as follows.
-Section~\ref{sec:related-work} introduces
-related work. We describes the background
+We describes the background
 of PLFS in section~\ref{sec:plfs-background}.
 In section~\ref{sec:creating-pattern},
 we describe how to create pattern by data
@@ -255,13 +254,6 @@ movements to reduce data shuffling overhead.
 The implementation details are in section~\ref{sec:implementation}.
 Future work is in section~\ref{sec:future-work}.
 Section~\ref{sec:conclusions} concludes the paper.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Related work}
-\label{sec:related-work}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -275,14 +267,14 @@ There are several ways for them to write data to
 file. One is called \emph{N-1}. It means N processes
 write to one file concurrently.
 Another is called \emph{N-N}, which means N processes
-write a N files. 
+write to N files. 
 
 Generally, N-1 write is slower than N-N write. 
 That is because, in file systems with locks, with
 N-1 writes, when
 one process is writing a segment of data, other
 processes cannot write it. This serializes the
-write to that segment. With N-N write, this is 
+writes to that segment. With N-N write, this is 
 not a problem because each process writes
 its own file. Nobody contends for data. 
 Due to reasons like this, N-1 write can
