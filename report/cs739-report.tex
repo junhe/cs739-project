@@ -106,15 +106,18 @@ performance computer systems. PLFS (Parallel
 Log-structured File System) has been developed
 and it is able to speed up storage systems by
 several orders of magnitudes. However, PLFS
-is limited by its log, which grow to a
-large size as the number of writes increase.
-We propose to shuffle data among distributed
+is limited by its log, which grows to a
+large size as the number of writes increases.
+In this paper, We develop a system to shuffle data among distributed
 processes to make data writes more regular,
-in order to enable PLFS's log compression
-mechanism. The results show that we can reduce
-the size of log significantly. In addition,
-we try to reduce the data movement overhead
-by careful scheduling.
+which further enables PLFS's log compression
+mechanism. We propose an effective and fast 
+approximation scheduling algorithm to reduce 
+the data movement overhead.
+Our experimental results show that our 
+system significantly reduces
+the size of log, hence removes the
+limitation of PLFS.
 \end{abstract}
 
 %\keywords{Block allocation, ext4, file system} % NOT required for Proceedings
