@@ -33,7 +33,11 @@
 
 \usepackage{listings}
 \lstset{language=C} 
-             
+
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+
 \usepackage[english]{babel}
 \usepackage{blindtext}
 
@@ -138,7 +142,7 @@ dependency with data on another node.
 
 \begin{figure}[ht]
     \includegraphics
-    	[trim=0mm 110mm 150mm 0mm, clip, width=80mm]
+    	[trim=-10mm 140mm 170mm 0mm, clip, width=80mm]
     	{layers}
     \caption{Software stack with PLFS}
     \label{fig:layers}
@@ -150,7 +154,7 @@ HPC system. Thousands of compute nodes are connected
 with each other by the high-speed network. A storage
 cluster is also attached to the network. There is
 a cluster file system on the storage system. The popular
-choices of cluster file system are GPFS from IBM,
+choices of cluster file systems are GPFS from IBM,
 Lustre from Intel (recently acquired by Intel),
 PanFS from Panasas, and PVFS from Argonne 
 National Laboratory. Applications like large-scale
@@ -161,9 +165,10 @@ Using the storage system efficiently is hard. The
 storage system performance highly depends the way the
 application writes the data.
 
-Parallel Log-structure File System has been developed
+Parallel Log-structure File System (PLFS) \cite{bent2009plfs}
+has been developed
 at Los Alamos National Lab to accelerate HPC storage
-systems. The software stack is shown in Figure~\ref{fig:layers}
+systems. The software stack is shown in Figure~\ref{fig:layers}.
 PLFS is presented as a library. Currently, there
 are three ways of using PLFS. First, the application
 can directly use PLFS calls, such as plfs\_open(),
@@ -173,7 +178,7 @@ Interface) library that has been linked with PLFS.
 Third, the PLFS can be mounted as a FUSE 
 \footnote{FUSE stands for file system in user space. fuse.sourceforge.net}
 file system.
-PLFS sits on top of a 'real' cluster file system.
+PLFS sits on top of a `real' cluster file system.
 Or we can consider PLFS as a middleware between
 the application and the real cluster file system.
 PLFS reorganizes the data accesses before the
@@ -202,7 +207,7 @@ take effect.
 
 \begin{figure}[ht]
     \includegraphics
-    	[trim=0mm 110mm 150mm 0mm, clip, width=80mm]
+    	[trim=0mm 130mm 180mm 0mm, clip, width=80mm]
     	{layers-shuffle}
     \caption{Software stack with data shuffling}
     \label{fig:layers-shuffle}
@@ -288,7 +293,7 @@ is easier for their data management.
 
 \begin{figure}[ht]
     \includegraphics
-    	[trim=0mm 0mm 0mm 0mm, clip, width=80mm]
+    	[trim=10mm 50mm 50mm 0mm, clip, width=80mm]
     	{plfs-logical-physical}
     \caption{PLFS transparently transfers N-1 write to N-N write.}
     \label{fig:plfs-logical-physical}
@@ -312,7 +317,7 @@ cluster file system.
 
 \begin{figure}[ht]
     \includegraphics
-    	[trim=0mm 0mm 0mm 0mm, clip, width=80mm]
+    	[trim=15mm 100mm 60mm 0mm, clip, width=80mm]
     	{logexample}
     \caption{An example of log}
     \label{fig:logexample}
@@ -415,7 +420,7 @@ Finally, they go back to green.
 
 \begin{figure}[ht]
     \includegraphics
-    	[trim=0mm 0mm 0mm 0mm, clip, width=80mm]
+    	[trim=0mm 90mm 130mm 0mm, clip, width=80mm]
     	{lanl2pattern}
     \caption{Irregular writes of LANL application 2.}
     \label{fig:lanl2pattern}
@@ -440,7 +445,7 @@ the writes are from the application directly.
 
 \begin{figure}[ht]
     \includegraphics
-    	[trim=0mm 0mm 0mm 0mm, clip, width=80mm]
+    	[trim=10mm 30mm 30mm 0mm, clip, width=80mm]
     	{data-shuffling-example}
     \caption{Data shuffling example.}
     \label{fig:data-shuffling-example}
@@ -527,6 +532,59 @@ system. We keep this as future work.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Scheduling data movements}
 \label{sec:scheduling-data-movements}
+%% scheduling
+
+\begin{figure}[thb]
+\begin{center}
+\includegraphics
+[trim=40mm 50mm 4mm 20mm, clip, width=80mm]
+{shuffle-graph.pdf}
+\caption{
+Data shuffling graph}
+\label{fig:shuffle-graph}
+\end{center}
+\end{figure}
+
+
+As shown in Figure \ref{fig:shuffle-graph}, each node is denoted as a process, which holds several data segments to move. A edge  represents the data shuffling direction and size. Note our data shuffling graph is a non-disparite graph.
+Our goal here is to schedule all the data movements such that the overall completion time is minimized.
+
+Our data shuffling problem can be considered as one variation of the   job shop scheduling problem, in which ideal jobs are assigned to resources at particular times\cite{garey1976complexity}. The job shop scheduling problem is well studied and knows as a NP-Hard problem \cite{adams1988shifting}. 
+However, previous approximation methods can not be directly applied to our shuffling problem, as we have a very special constraint. In our setting, each process can either send or receive   data   at one time. When   process  A is sending data to process B, A and B need to collaborate  together to  finish this data transferring procedure.
+Hence, there is a partially sequential dependence in the scheduling.
+Each process has some data packages to send and also needs to receive some packages. We need to determine the order of data shuffling jobs for each process. We assume there is no cost for job transition. Our algorithm is based on the ideal case where the data transferring time is only based on the data size. 
+
+
+ Two observations motivate our algorithm design. First,  the final completion time is determined by finishing scheduling all the data shuffling, especially those process with heavy workload. 
+Thus, processes with heavy workload should have higher priority. Second, the more data is shuffled in parallel, the higher throughput we can obtain. Based on these two observations, we a multi-stage max-weight match finding (M3F) algorithm. For each process (node in our graph), we denote its workload as all data that it needs to receive and send. Then we define the weight of each edge (data shuffling request) as the sum of  workloads of sender node and receiver node. Note this weight is different from the original edge weight, which is the data size. The main idea of our algorithm is to iteratively find a max-weight near optimal match within our graph, and schedule all edges each match at one time. The edge weights are updated after each iteration. The iteration continues until all edges are scheduled. The pseudo code our our M3F algorithm is listed in Algorithm \ref{alg:m3f}.
+
+
+\begin{algorithm}
+\caption{Multi-stage max-weight match finding (M3F) algorithm}
+\label{alg:m3f}
+\begin{algorithmic}[1]
+\STATE Initialize the non-scheduled edge set $S = \{\mbox{all edges}\}$ 
+\REPEAT 
+\STATE Initialize all nodes as idle
+\REPEAT
+\STATE Find an idle edge $e  \in S$ with largest weight in $S$
+\STATE Mark nodes incident to $e$ as busy, and update their workload 
+\STATE Delete $e$ from $S$
+\UNTIL{No idle edge  can be scheduled } 
+\UNTIL{$S$ is empty}
+\end{algorithmic}
+\end{algorithm}
+
+Another   possibility is to all the jobs in a dynamic/online  manner. Instead of providing a static schedule of each job, we assign a greedy policy for each process. 
+Each process holds a data transfer (send/receive) job list, and hence its overall workload can be computed. Further, each process also has a list 
+of peers, for which the process needs to communicate data with. We sort this peer list based on each peer's workload.
+Then each process performs a hand-shake communication with each peer, according to the sorted order.
+If a peer is available, the process sets up the channel with the peer and transfer data. Otherwise, the process continues to hand-shake with the next peer, until finding an available one.
+Each process repeat such processes until all jobs are finished.
+
+We note our global algorithm is not global optimal. The time complexity of our algorithm is $O(n^2)$, with $n$ equals to the number of edges.  Our experimental evaluation shows our algorithm consistently outperforms a stochastic scheduling baseline.
+
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -538,7 +596,7 @@ system. We keep this as future work.
 
 \begin{figure}[ht]
     \includegraphics
-    	[trim=0mm 0mm 0mm 0mm, clip, width=80mm]
+    	[trim=0mm 80mm 120mm 0mm, clip, width=80mm]
     	{framework}
     \caption{System design}
     \label{fig:framework}
@@ -658,7 +716,7 @@ based on our knowledge, we believe this will be the case.
 
 \begin{figure}[ht]
     \includegraphics
-    	[trim=0mm 0mm 0mm 0mm, clip, width=80mm]
+    	[trim=20mm 90mm 80mm 0mm, clip, width=85mm]
     	{logcompression}
     \caption{Log compression rates}
     \label{fig:logcompression}
@@ -674,7 +732,7 @@ the data movement activities.
 
 \begin{figure}[ht]
     \includegraphics
-    	[trim=0mm 0mm 0mm 0mm, clip, width=80mm]
+    	[trim=0mm 0mm 10mm 0mm, clip, width=80mm]
     	{bw}
     \caption{Data shuffling bandwidth}
     \label{fig:bw}
@@ -746,5 +804,5 @@ for an important application by about 50\%.
 
 
 \bibliographystyle{abbrv}
-\bibliography{sigproc}  
+\bibliography{report}  
 \end{document}
